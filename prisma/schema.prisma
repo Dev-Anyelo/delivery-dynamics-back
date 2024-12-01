@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Driver {
+  id     Int     @id @default(autoincrement()) // ID único del conductor
+  name   String // Nombre del conductor
+  routes Route[] // Relación con las rutas
+}
+
+model Route {
+  id       Int      @id @map("id") // ID único de la ruta
+  driverId Int // Relación con Driver
+  date     DateTime // Fecha programada
+  notes    String? // Notas opcionales
+  orders   Order[] // Relación con las órdenes
+
+  // Relación con Driver
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id       Int     @id @map("id") // ID único de la orden
+  routeId  Int // Relación con Route
+  sequence Int // Secuencia de la orden en la ruta
+  value    Float // Valor de la orden
+  priority Boolean @default(false) // Si es prioritaria
+
+  // Relación con Route
+  route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}
