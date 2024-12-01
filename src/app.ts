@@ -22,6 +22,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/", indexRouter);
-app.use("/routes", routesRouter);
+app.use("/api", routesRouter);
 
 export default app;

@@ -1,13 +1,9 @@
 import { Router } from "express";
-//controller
-
+import { getRoutes, createRoute } from "../controllers/routesController";
 
 const router = Router();
 
-router.get("/api/routes");
-router.get("/api/route/:id");
-router.post("/api/route/update/:id");
-router.delete("/api/route/delete/:id");
-
+router.get("/routes", getRoutes);
+router.post("/routes", createRoute);
 
 export default router;
