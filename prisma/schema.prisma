@@ -8,29 +8,27 @@ datasource db {
 }
 
 model Driver {
-  id     Int     @id @default(autoincrement()) // ID único del conductor
-  name   String // Nombre del conductor
-  routes Route[] // Relación con las rutas
+  id     Int     @id @default(autoincrement())
+  name   String
+  routes Route[]
 }
 
 model Route {
-  id       Int      @id @map("id") // ID único de la ruta
-  driverId Int // Relación con Driver
-  date     DateTime // Fecha programada
-  notes    String? // Notas opcionales
-  orders   Order[] // Relación con las órdenes
+  id       Int      @id @default(autoincrement())
+  driverId Int
+  date     DateTime
+  notes    String?
+  orders   Order[]
 
-  // Relación con Driver
   driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
 }
 
 model Order {
-  id       Int     @id @map("id") // ID único de la orden
-  routeId  Int // Relación con Route
-  sequence Int // Secuencia de la orden en la ruta
-  value    Float // Valor de la orden
-  priority Boolean @default(false) // Si es prioritaria
+  id       Int     @id @default(autoincrement())
+  routeId  Int
+  sequence Int
+  value    Float
+  priority Boolean @default(false)
 
-  // Relación con Route
   route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
 }
