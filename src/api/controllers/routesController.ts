@@ -5,6 +5,31 @@ import { Request, Response } from "express";
 import { routeExists } from "../../lib/lib";
 import { RouteSchema } from "../../schemas/schemas";
 
+// Obtener todas las rutas
+export const getAllRoutes = async (req: Request, res: Response) => {
+  try {
+    const routes = await db.route.findMany({
+      include: {
+        driver: true,
+        orders: true,
+      },
+    });
+
+    const formattedRoutes = routes.map((route) => ({
+      id: route.id,
+      driverId: route.driverId,
+      driver: route.driver,
+      date: route.date.toISOString().split("T")[0],
+      notes: route.notes,
+      orders: route.orders,
+    }));
+
+    res.status(200).json(formattedRoutes);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener las rutas", error });
+  }
+};
+
 // Obtener una ruta por ID
 export const getRouteById = async (
   req: Request,
@@ -37,20 +62,21 @@ export const getRouteById = async (
       };
 
       return res.status(200).json({
-        message: "Ruta encontrada en la base de datos",
+        message: "Ruta encontrada correctamente desde la base de datos",
         data: formattedRoute,
       });
     }
 
     // Si no está en la base de datos, buscar en el servicio externo
     const { EXTERNAL_SERVICE_URL } = config;
+
     try {
       const externalServiceResponse = await axios.get(
         `${EXTERNAL_SERVICE_URL}/${id}`
       );
 
       return res.status(200).json({
-        message: "Ruta encontrada en el servicio externo",
+        message: "Ruta encontrada correctamente desde el servicio externo",
         data: externalServiceResponse.data,
       });
     } catch (externalError: any) {
@@ -70,31 +96,6 @@ export const getRouteById = async (
   }
 };
 
-// Obtener todas las rutas
-export const getAllRoutes = async (req: Request, res: Response) => {
-  try {
-    const routes = await db.route.findMany({
-      include: {
-        driver: true,
-        orders: true,
-      },
-    });
-
-    const formattedRoutes = routes.map((route) => ({
-      id: route.id,
-      driverId: route.driverId,
-      driver: route.driver,
-      date: route.date.toISOString().split("T")[0],
-      notes: route.notes,
-      orders: route.orders,
-    }));
-
-    res.status(200).json(formattedRoutes);
-  } catch (error) {
-    res.status(500).json({ message: "Error al obtener las rutas", error });
-  }
-};
-
 // Crear una nueva ruta
 export const createRoute = async (
   req: Request,
@@ -111,15 +112,19 @@ export const createRoute = async (
 
     const { id, driverId, date, notes, orders } = parsed.data;
 
-    // Verifica si la ruta ya existe
-    const existingRoute = await routeExists(id);
+    // Verifica si la ruta ya existe en la base de datos
+    const existingRoute = await db.route.findUnique({
+      where: { id: Number(id) },
+      include: { orders: true, driver: true },
+    });
 
-    if (existingRoute)
-      return res
-        .status(400)
-        .json({ message: "La ruta ya existe, por favor intenta nuevamente" });
+    if (existingRoute) {
+      return res.status(400).json({
+        message: "La ruta ya existe, por favor intenta nuevamente",
+      });
+    }
 
-    // Crea una nueva ruta
+    // Si no existe, la creamos en la base de datos
     const newRoute = await db.route.create({
       data: {
         id,
@@ -146,6 +151,80 @@ export const createRoute = async (
     return res
       .status(500)
       .json({ message: "Error interno del servidor.", error: error.message });
+  }
+};
+
+// Actualizar una ruta por ID
+export const updateRoute = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  const { id } = req.params;
+
+  if (!id || isNaN(Number(id)) || Number(id) <= 0) {
+    return res.status(400).json({ message: "ID de ruta inválido" });
+  }
+
+  try {
+    const route = await routeExists(Number(id));
+
+    if (!route) return res.status(404).json({ message: "Ruta no encontrada" });
+
+    const parsed = RouteSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ message: "Datos inválidos", errors: parsed.error.format() });
+    }
+
+    const { driverId, date, notes, orders } = parsed.data;
+
+    // Primero actualizamos la ruta
+    const updatedRoute = await db.route.update({
+      where: { id: Number(id) },
+      data: {
+        driverId,
+        date: new Date(date),
+        notes,
+      },
+      include: { driver: true, orders: true },
+    });
+
+    const updatedOrders = await Promise.all(
+      orders.map(async (order) => {
+        if (order.id) {
+          return db.order.update({
+            where: { id: order.id },
+            data: {
+              sequence: order.sequence,
+              value: order.value,
+              priority: order.priority,
+            },
+          });
+        } else {
+          // Si la orden no existe, la insertamos
+          return db.order.create({
+            data: {
+              routeId: Number(id),
+              sequence: order.sequence,
+              value: order.value,
+              priority: order.priority,
+            },
+          });
+        }
+      })
+    );
+
+    res.status(200).json({
+      message: "Ruta actualizada correctamente",
+      data: { ...updatedRoute, orders: updatedOrders },
+    });
+  } catch (error: any) {
+    console.error("Error al actualizar la ruta:", error);
+    res
+      .status(500)
+      .json({ message: "Error al actualizar la ruta", error: error.message });
   }
 };
 
@@ -204,78 +283,5 @@ export const deleteRoute = async (
     res
       .status(500)
       .json({ message: "Error al eliminar la ruta", error: error.message });
-  }
-};
-
-// Actualizar una ruta por ID
-export const updateRoute = async (
-  req: Request,
-  res: Response
-): Promise<any> => {
-  const { id } = req.params;
-
-  if (!id || isNaN(Number(id)) || Number(id) <= 0) {
-    return res.status(400).json({ message: "ID de ruta inválido" });
-  }
-
-  try {
-    const route = await routeExists(Number(id));
-
-    if (!route) return res.status(404).json({ message: "Ruta no encontrada" });
-
-    const parsed = RouteSchema.safeParse(req.body);
-
-    if (!parsed.success) {
-      return res
-        .status(400)
-        .json({ message: "Datos inválidos", errors: parsed.error.format() });
-    }
-
-    const { driverId, date, notes, orders } = parsed.data;
-
-    // Primero actualizamos la ruta
-    const updatedRoute = await db.route.update({
-      where: { id: Number(id) },
-      data: {
-        driverId,
-        date: new Date(date),
-        notes,
-      },
-      include: { driver: true, orders: true },
-    });
-
-    // Luego actualizamos o insertamos las órdenes
-    const updatedOrders = await Promise.all(
-      orders.map(async (order) => {
-        if (order.id) {
-          // Si la orden ya existe, la actualizamos
-          return db.order.update({
-            where: { id: order.id },
-            data: {
-              sequence: order.sequence,
-              value: order.value,
-              priority: order.priority,
-            },
-          });
-        } else {
-          // Si la orden no existe, la insertamos
-          return db.order.create({
-            data: {
-              routeId: Number(id),
-              sequence: order.sequence,
-              value: order.value,
-              priority: order.priority,
-            },
-          });
-        }
-      })
-    );
-
-    res.status(200).json({ message: "Ruta actualizada", data: updatedRoute });
-  } catch (error: any) {
-    console.error("Error al actualizar la ruta:", error);
-    res
-      .status(500)
-      .json({ message: "Error al actualizar la ruta", error: error.message });
   }
 };
