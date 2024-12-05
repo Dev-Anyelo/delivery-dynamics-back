@@ -37,50 +37,46 @@ export const getRouteById = async (
 ): Promise<any> => {
   const { id } = req.params;
 
-  // Validación del ID de la ruta
   if (!id || isNaN(Number(id)) || Number(id) <= 0) {
     return res.status(400).json({ message: "ID de ruta inválido" });
   }
 
   try {
-    // Verificar si la ruta existe en la base de datos
+    // Buscar ruta en la base de datos
     const route = await db.route.findUnique({
       where: { id: Number(id) },
       include: { orders: true, driver: true },
     });
 
-    // Si la ruta se encuentra en la base de datos
     if (route) {
       return res.status(200).json({
         success: true,
         data: route,
-        message: "Ruta encontrada desde la base de datos",
+        message: "Ruta encontrada en la base de datos.",
       });
     }
 
-    // Si la ruta no existe en la base de datos, intentar obtenerla desde el servicio externo
+    // Buscar en el servicio externo
     const externalRouteData = await getExternalRoute(id);
 
-    // Si la ruta se encuentra en el servicio externo
     if (externalRouteData) {
       return res.status(200).json({
         success: true,
         data: externalRouteData,
-        message: "Ruta encontrada en servicio externo",
+        message: "Ruta encontrada en el servicio externo.",
       });
     }
 
     return res.status(404).json({
       success: false,
       message:
-        "Ruta no encontrada en la base de datos ni en el servicio externo",
+        "Ruta no encontrada en la base de datos ni en el servicio externo.",
     });
   } catch (error: any) {
-    // Manejo de errores
+    console.error("Error al obtener la ruta:", error);
     return res.status(500).json({
       success: false,
-      message: "Error al obtener la ruta",
-      error: error.message,
+      message: "Error al buscar la ruta.",
     });
   }
 };
@@ -92,22 +88,27 @@ export const createRoute = async (
 ): Promise<any> => {
   const { id, driverId, date, notes, orders } = req.body;
 
+  if (!id || !driverId || !date || !orders || orders.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Los datos proporcionados son incompletos o inválidos.",
+    });
+  }
+
   try {
-    // Verificar si la ruta ya existe en la base de datos
+    // Comprobar si la ruta ya existe
     const existingRoute = await db.route.findUnique({
       where: { id },
     });
 
     if (existingRoute) {
-      // Si la ruta ya existe, devolver un mensaje de error
-      return res.status(200).json({
+      return res.status(409).json({
         success: false,
-        message: "La ruta ya existe en la base de datos",
-        data: existingRoute,
+        message: "La ruta ya existe en la base de datos.",
       });
     }
 
-    // Si la ruta no existe, crear una nueva
+    // Crear nueva ruta
     const newRoute = await db.route.create({
       data: {
         id,
@@ -122,15 +123,42 @@ export const createRoute = async (
 
     return res.status(201).json({
       success: true,
-      message: "Ruta creada exitosamente",
+      message: "Ruta creada exitosamente.",
       data: newRoute,
     });
   } catch (error: any) {
+    console.error("Error al crear la ruta:", error);
     return res.status(500).json({
       success: false,
-      message: "Error al crear la ruta",
-      error: error.message,
+      message: "Error al crear la ruta.",
     });
+  }
+};
+
+// Obtener una ruta desde un servicio externo
+export const getExternalRoute = async (id: string) => {
+  try {
+    const { EXTERNAL_SERVICE_URL } = config;
+    const response = await axios.get(`${EXTERNAL_SERVICE_URL}/${id}`);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        return null;
+      } else {
+        console.error(
+          "Error al obtener ruta del servicio externo:",
+          error.message
+        );
+        throw new Error("Error al obtener la ruta del servicio externo");
+      }
+    } else {
+      console.error(
+        "Error inesperado al obtener ruta del servicio externo:",
+        error
+      );
+      throw new Error("Error inesperado al obtener la ruta");
+    }
   }
 };
 
@@ -217,21 +245,6 @@ export const getDrivers = async (req: Request, res: Response) => {
     res.status(200).json(drivers);
   } catch (error) {
     res.status(500).json({ message: "Error loading drivers." });
-  }
-};
-
-// Obtener una ruta desde un servicio externo
-export const getExternalRoute = async (id: string) => {
-  try {
-    const { EXTERNAL_SERVICE_URL } = config;
-    const response = await axios.get(`${EXTERNAL_SERVICE_URL}/${id}`);
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      return null;
-    } else {
-      throw new Error("Error fetching route from external service");
-    }
   }
 };
 
