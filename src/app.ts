@@ -21,7 +21,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-// Cargar conductores desde el archivo CSV
+// Intentar cargar conductores desde el archivo CSV al arrancar
 loadDriversFromCSV()
   .then(() => {
     console.log("Conductores cargados correctamente");
