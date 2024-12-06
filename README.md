@@ -102,21 +102,21 @@ Esto levantará un servicio en el puerto `3002`.
 
 # Contultar todas las rutas
 
-![alt text](all-routes-created.png)
+![all-routes-created](https://github.com/user-attachments/assets/ab5e4c66-3e3f-4f5c-acc4-410c7c9c0ae0)
 
 ## Consultar Ruta
 
-![alt text](get-route-from-external-server.png)
+![get_route](https://github.com/user-attachments/assets/ae1a4823-c01b-46b3-b2d2-a2b7b6bdbffa)
 
-![alt text](get_route.png)
+![get-route-from-external-server](https://github.com/user-attachments/assets/0c6458e4-4cf8-485c-9132-9e8987c4a737)
 
 ## Crear Ruta
 
-![alt text](create-route-obtained-from-an-external-service.png)
+![create-route-obtained-from-an-external-service](https://github.com/user-attachments/assets/6299bbc9-159b-4a52-a7a6-6500fbc3acf3)
 
 ## Actualizar Ruta
 
-![alt text](updated-route.png)
+![updated-route](https://github.com/user-attachments/assets/5b82fb0c-a91b-46b4-970b-9b3a19274173)
 
 ### Repositorios
 
