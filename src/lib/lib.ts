@@ -3,7 +3,7 @@ import path from "path";
 import axios from "axios";
 import csv from "csv-parser";
 import { db } from "../lib/db";
-import { Request, Response } from "express";
+import { Response } from "express";
 
 // Obtener todas las rutas
 export const fetchAllRoutes = async () => {
