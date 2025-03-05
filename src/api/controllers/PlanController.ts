@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { db } from "../../lib/db";
-import { OperationType } from "@prisma/client";
 import { Request, Response } from "express";
 import { PlanSchema } from "../../schemas/schemas";
 
