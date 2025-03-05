@@ -1,26 +1,56 @@
 import { Router } from "express";
 
 import {
-  getAllRoutes,
+  getAllPlans,
+  createPlan,
+  deletePlan,
+  getPlanById,
+  updatePlan,
+  getPlanByDateAndUser,
+} from "../controllers/planController";
+
+import {
+  getAllRouteGroups,
+  getRouteGroupsById,
+  createRouteGroup,
+  updateRouteGroup,
+  getRouteByID,
   createRoute,
-  getDrivers,
-  getRouteById,
+  updateRoute,
   deleteRoute,
-  updateRoute
-} from "../controllers/routesController";
+  deleteRouteGroup,
+} from "../controllers/RouteController";
 
 const router = Router();
 
-router.get("/routes", getAllRoutes);
+// ------ PLANS ------ //
 
-router.get("/drivers", getDrivers);
+router.get("/plans", async (req, res) => {
+  const { date, assignedUserId } = req.query;
+  if (date && assignedUserId) {
+    return getPlanByDateAndUser(req, res);
+  } else {
+    return getAllPlans(req, res);
+  }
+});
 
-router.get("/routes/:id", getRouteById);
+router.get("/plans/:id", getPlanById);
+router.post("/plans", createPlan);
+router.put("/plans/:id", updatePlan);
+router.delete("/plans/:id", deletePlan);
 
-router.post("/routes", createRoute);
+// ------ ROUTES GROUP ------ //
 
-router.put("/routes/:id", updateRoute);
+router.get("/route-groups", getAllRouteGroups);
+router.get("/route-groups/:id", getRouteGroupsById);
+router.post("/route-groups", createRouteGroup);
+router.put("/route-groups/:id", updateRouteGroup);
+router.delete("/route-groups/:id", deleteRouteGroup);
 
-router.delete("/routes/:id", deleteRoute);
+// ------ ROUTES ------ //
+router.get("/route-groups/:routeGroupId/routes/:routeId:", getRouteByID);
+router.post("/route-groups/:routeGroupId/routes", createRoute);
+router.put("/route-groups/:routeGroupId/routes/:routeId", updateRoute);
+router.delete("/route-groups/:routeGroupId/routes/:routeId", deleteRoute);
 
 export default router;

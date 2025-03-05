@@ -1,34 +1,349 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model Driver {
-  id     Int     @id @default(autoincrement())
-  name   String
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// Enums
+enum OperationType {
+  delivery
+  sales
+}
+
+enum PointOfInterestType {
+  distribution_center
+  warehouse
+  store
+  headquarters
+}
+
+enum PaymentMethodType {
+  cash
+  credit_card
+  credit_note
+  check
+  bank_transfer
+  other
+}
+
+/// Models
+
+model PointOfInterest {
+  id        String              @id
+  name      String
+  address   String
+  latitude  Float
+  longitude Float
+  type      PointOfInterestType
+
+  // Relación inversa en Plan (como punto de inicio y fin)
+  startPlans Plan[] @relation("PlanStartPoint")
+  endPlans   Plan[] @relation("PlanEndPoint")
+}
+
+model Customer {
+  id    String @id
+  name  String
+  phone String
+  email String
+
+  addresses Address[]
+  visits    Visit[]
+  orders    Order[]
+}
+
+model Address {
+  id           String  @id
+  label        String
+  address      String
+  latitude     Float
+  longitude    Float
+  phone        String
+  notes        String?
+  contact      String
+  businessType String
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  // Ventanas de tiempo opcionales (modelo TimeWindow)
+  firstDeliveryTimeWindowId  String?
+  firstDeliveryTimeWindow    TimeWindow? @relation("FirstDelivery", fields: [firstDeliveryTimeWindowId], references: [id])
+  secondDeliveryTimeWindowId String?
+  secondDeliveryTimeWindow   TimeWindow? @relation("SecondDelivery", fields: [secondDeliveryTimeWindowId], references: [id])
+
+  visits     Visit[]
+  orders     Order[]
+  routeStops RouteStop[]
+}
+
+model TimeWindow {
+  id          String   @id @default(cuid())
+  openingTime DateTime
+  closingTime DateTime
+
+  // Relaciones inversas (opcional, si se desea consultar desde Address)
+  firstForAddresses  Address[] @relation("FirstDelivery")
+  secondForAddresses Address[] @relation("SecondDelivery")
+}
+
+model BusinessSegment {
+  id   String  @id
+  name String?
+
+  plans  Plan[]
+  orders Order[]
+}
+
+model Plan {
+  id                String          @id
+  operationType     OperationType
+  date              DateTime
+  activeDates       DateTime[]
+  assignedUserId    String
+  businessSegmentId String
+  businessSegment   BusinessSegment @relation(fields: [businessSegmentId], references: [id])
+
+  routeId String?
+  route   Route?  @relation(fields: [routeId], references: [id])
+  truckId String?
+  truck   Truck?  @relation(fields: [truckId], references: [id])
+
+  startPointId String
+  startPoint   PointOfInterest @relation("PlanStartPoint", fields: [startPointId], references: [id])
+  endPointId   String
+  endPoint     PointOfInterest @relation("PlanEndPoint", fields: [endPointId], references: [id])
+
+  plannedStartTimestamp DateTime
+  plannedEndTimestamp   DateTime
+  plannedTotalTimeH     Float
+  plannedDriveTimeH     Float
+  plannedServiceTimeH   Float
+  plannedBreakTimeH     Float
+  plannedWaitTimeH      Float
+  plannedDistanceKm     Float
+
+  actualStartTimestamp DateTime?
+  actualEndTimestamp   DateTime?
+  startLatitude        Float
+  startLongitude       Float
+  endLatitude          Float
+  endLongitude         Float
+
+  visits Visit[]
+  orders Order[]
+}
+
+model Visit {
+  id       String @id
+  sequence Int
+
+  planId String
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  addressId String
+  address   Address @relation(fields: [addressId], references: [id])
+
+  // Relaciones separadas para órdenes de entrega y de recogida
+  deliveryOrders Order[] @relation("DeliveryVisitOrders")
+  pickupOrders   Order[] @relation("PickupVisitOrders")
+
+  paymentMethods       PaymentMethod[]
+  reassignedDeliveries DeliveryReassignment[]
+}
+
+model Order {
+  id     String @id
+  planId String
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  addressId String
+  address   Address @relation(fields: [addressId], references: [id])
+
+  salesRepresentativeId String?
+  salesRepresentative   SalesRepresentative? @relation(fields: [salesRepresentativeId], references: [id])
+
+  serviceDate DateTime
+
+  orderGroupId String?
+  orderGroup   OrderGroup? @relation(fields: [orderGroupId], references: [id])
+
+  startPointId      String?
+  businessSegmentId String
+  businessSegment   BusinessSegment @relation(fields: [businessSegmentId], references: [id])
+
+  value             Float
+  volume            Float
+  weight            Float
+  cases             Int
+  instructions      String?
+  requiresSignature Boolean
+  actualValue       Float
+  notes             String?
+  status            String
+  statusConfirmed   Boolean
+  statusTimestamp   DateTime?
+
+  // Relación a Visit: una para delivery y otra para pickup.
+  deliveryVisitId String?
+  deliveryVisit   Visit?  @relation("DeliveryVisitOrders", fields: [deliveryVisitId], references: [id])
+  pickupVisitId   String?
+  pickupVisit     Visit?  @relation("PickupVisitOrders", fields: [pickupVisitId], references: [id])
+
+  lineItems LineItem[]
+}
+
+model LineItem {
+  id      String @id
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  lineNumber       Int
+  quantity         Float
+  unitPrice        Float
+  taxRate          Float
+  value            Float
+  actualQuantity   Float
+  actualValue      Float
+  status           String
+  returnedReasonId String? // Referencia opcional a Reason (por ejemplo, "returned-product")
+  notes            String?
+}
+
+model Product {
+  id          String  @id
+  description String?
+
+  lineItems LineItem[]
+}
+
+model PaymentMethod {
+  id         String            @id @default(cuid())
+  method     PaymentMethodType
+  value      Float
+  documentId String?
+
+  bankId String?
+  bank   Bank?   @relation(fields: [bankId], references: [id])
+
+  accountNumber String?
+
+  visitId String
+  visit   Visit  @relation(fields: [visitId], references: [id])
+}
+
+model DeliveryReassignment {
+  id                 String   @id @default(cuid())
+  orderId            String
+  fromDeliveryPlanId String
+  fromOrderGroupId   String?
+  toDeliveryPlanId   String
+  toOrderGroupId     String?
+  orderValue         Float
+  timestamp          DateTime
+
+  visitId String
+  visit   Visit  @relation(fields: [visitId], references: [id])
+}
+
+model SalesRepresentative {
+  id   String @id
+  name String
+
+  orders Order[]
+}
+
+model OrderGroup {
+  id     String  @id
+  orders Order[]
+}
+
+model RouteGroup {
+  id          String  @id
+  name        String
+  description String?
+
   routes Route[]
 }
 
 model Route {
-  id       Int      @id @default(autoincrement())
-  driverId Int
-  date     DateTime
-  notes    String?
-  orders   Order[]
+  id           String     @id
+  routeGroupId String
+  routeGroup   RouteGroup @relation(fields: [routeGroupId], references: [id])
 
-  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  startPointId String
+  endPointId   String
+
+  assignedTruckId String?
+  assignedTruck   Truck?  @relation("AssignedTruck", fields: [assignedTruckId], references: [id])
+
+  assignedTruckTypeId String?
+  assignedTruckType   TruckType? @relation("AssignedTruckType", fields: [assignedTruckTypeId], references: [id])
+
+  assignedUserId String
+
+  stops RouteStop[]
+
+  plans Plan[]
 }
 
-model Order {
-  id       Int     @id @default(autoincrement())
-  routeId  Int
-  sequence Int
-  value    Float
-  priority Boolean @default(false)
+model RouteStop {
+  routeId String
+  route   Route  @relation(fields: [routeId], references: [id])
 
-  route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  addressId String
+  address   Address @relation(fields: [addressId], references: [id])
+
+  sequence Int
+
+  @@id([routeId, sequence])
+}
+
+model Truck {
+  id          String    @id
+  label       String
+  truckTypeId String
+  truckType   TruckType @relation(fields: [truckTypeId], references: [id])
+
+  plans  Plan[]
+  routes Route[] @relation("AssignedTruck")
+}
+
+model TruckType {
+  id        String  @id
+  label     String
+  size      Int
+  maxCases  Int
+  maxValue  Float
+  maxVolume Float
+  maxWeight Float
+  notes     String?
+
+  trucks Truck[]
+  routes Route[] @relation("AssignedTruckType")
+}
+
+model Bank {
+  id   String @id
+  name String
+
+  paymentMethods PaymentMethod[]
+}
+
+model Reason {
+  id      String @id
+  labelEn String
+  labelEs String
 }
