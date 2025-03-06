@@ -7,7 +7,7 @@ import {
   getPlanById,
   updatePlan,
   getPlanByDateAndUser,
-} from "../controllers/planController";
+} from "../controllers/PlanController";
 
 import {
   getAllRouteGroups,
