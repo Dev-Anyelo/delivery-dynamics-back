@@ -39,9 +39,12 @@ export const TruckTypeSchema: z.ZodType<any> = z.object({
 
 export const TruckSchema = z.object({
   id: z.string(),
-  label: z.string(),
+  label: z.string().optional().nullable(), // ya no es obligatorio
   truckTypeId: z.string(),
-  truckType: z.lazy(() => TruckTypeSchema),
+  truckType: z
+    .lazy(() => TruckTypeSchema)
+    .optional()
+    .nullable(), // permite que falte el objeto completo
   plans: z.array(z.lazy(() => PlanSchema)).optional(),
   routes: z.array(z.lazy(() => RouteSchema)).optional(), // Relación "AssignedTruck"
 });
@@ -158,7 +161,7 @@ export const OrderSchema: z.ZodType<any> = z.object({
     .lazy(() => SalesRepresentativeSchema)
     .optional()
     .nullable(),
-  serviceDate: z.date(),
+  serviceDate: z.coerce.date(),
   orderGroupId: z.string().optional(),
   orderGroup: z
     .lazy(() => OrderGroupSchema)
@@ -175,9 +178,9 @@ export const OrderSchema: z.ZodType<any> = z.object({
   requiresSignature: z.boolean(),
   actualValue: z.number(),
   notes: z.string().optional(),
-  status: z.string(),
-  statusConfirmed: z.boolean(),
-  statusTimestamp: z.date().optional(),
+  status: z.string().nullable(),
+  statusConfirmed: z.boolean().nullable(),
+  statusTimestamp: z.coerce.date().optional().nullable(),
   deliveryVisitId: z.string().optional(),
   deliveryVisit: z
     .lazy(() => VisitSchema)
@@ -194,8 +197,8 @@ export const OrderSchema: z.ZodType<any> = z.object({
 export const VisitSchema: z.ZodType<any> = z.object({
   id: z.string(),
   sequence: z.number(),
-  planId: z.string(),
-  plan: z.lazy(() => PlanSchema),
+  planId: z.string().optional(),
+  plan: z.lazy(() => PlanSchema).optional(),
   customerId: z.string(),
   customer: z.lazy(() => CustomerSchema),
   addressId: z.string(),
@@ -211,11 +214,11 @@ export const VisitSchema: z.ZodType<any> = z.object({
 export const PlanSchema: z.ZodType<any> = z.object({
   id: z.string(),
   operationType: OperationTypeEnum,
-  date: z.date(),
-  activeDates: z.array(z.date()),
-  assignedUserId: z.string(),
+  date: z.coerce.date(),
+  activeDates: z.array(z.coerce.date()),
+  assignedUserId: z.string().nullable().optional(),
   businessSegmentId: z.string(),
-  businessSegment: z.lazy(() => BusinessSegmentSchema),
+  businessSegment: z.lazy(() => BusinessSegmentSchema).optional(),
   routeId: z.string().optional(),
   route: z
     .lazy(() => RouteSchema)
@@ -230,23 +233,25 @@ export const PlanSchema: z.ZodType<any> = z.object({
   startPoint: z.lazy(() => PointOfInterestSchema),
   endPointId: z.string(),
   endPoint: z.lazy(() => PointOfInterestSchema),
-  plannedStartTimestamp: z.date(),
-  plannedEndTimestamp: z.date(),
+  plannedStartTimestamp: z.coerce.date(),
+  plannedEndTimestamp: z.coerce.date(),
   plannedTotalTimeH: z.number(),
   plannedDriveTimeH: z.number(),
   plannedServiceTimeH: z.number(),
-  plannedBreakTimeH: z.number(),
-  plannedWaitTimeH: z.number(),
+  plannedBreakTimeH: z.number().nullable(),
+  plannedWaitTimeH: z.number().nullable(),
   plannedDistanceKm: z.number(),
-  actualStartTimestamp: z.date().optional(),
-  actualEndTimestamp: z.date().optional(),
-  startLatitude: z.number().optional(),
-  startLongitude: z.number().optional(),
-  endLatitude: z.number().optional(),
-  endLongitude: z.number().optional(),
+  actualStartTimestamp: z.coerce.date().optional().nullable(),
+  actualEndTimestamp: z.coerce.date().optional().nullable(),
+  startLatitude: z.number().optional().nullable(),
+  startLongitude: z.number().optional().nullable(),
+  endLatitude: z.number().optional().nullable(),
+  endLongitude: z.number().optional().nullable(),
   visits: z.array(z.lazy(() => VisitSchema)).optional(),
   orders: z.array(z.lazy(() => OrderSchema)).optional(),
 });
+
+export const PlansSchema = z.array(PlanSchema);
 
 export const BusinessSegmentSchema = z.object({
   id: z.string(),
@@ -265,21 +270,21 @@ export const TimeWindowSchema: z.ZodType<any> = z.object({
 
 export const AddressSchema: z.ZodType<any> = z.object({
   id: z.string(),
-  label: z.string(),
+  label: z.string().nullable(),
   address: z.string(),
   latitude: z.number(),
   longitude: z.number(),
-  phone: z.string(),
-  notes: z.string().optional(),
-  contact: z.string(),
+  phone: z.string().nullable(),
+  notes: z.string().nullable().optional(),
+  contact: z.string().nullable(),
   businessType: z.string(),
-  customerId: z.string(),
-  customer: z.lazy(() => CustomerSchema),
+  customerId: z.string().optional(),
+  customer: z.lazy(() => CustomerSchema).optional(),
   firstDeliveryTimeWindowId: z.string().optional(),
   firstDeliveryTimeWindow: z
     .lazy(() => TimeWindowSchema)
     .optional()
-    .nullable(),
+    .nullable(),  
   secondDeliveryTimeWindowId: z.string().optional(),
   secondDeliveryTimeWindow: z
     .lazy(() => TimeWindowSchema)
@@ -293,8 +298,8 @@ export const AddressSchema: z.ZodType<any> = z.object({
 export const CustomerSchema = z.object({
   id: z.string(),
   name: z.string(),
-  phone: z.string(),
-  email: z.string(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
   addresses: z.array(z.lazy(() => AddressSchema)).optional(),
   visits: z.array(z.lazy(() => VisitSchema)).optional(),
   orders: z.array(z.lazy(() => OrderSchema)).optional(),
@@ -303,7 +308,7 @@ export const CustomerSchema = z.object({
 export const PointOfInterestSchema = z.object({
   id: z.string(),
   name: z.string(),
-  address: z.string(),
+  address: z.string().nullable(), // Permite null
   latitude: z.number(),
   longitude: z.number(),
   type: PointOfInterestTypeEnum,

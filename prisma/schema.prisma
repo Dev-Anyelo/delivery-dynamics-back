@@ -29,6 +29,12 @@ enum PaymentMethodType {
   other
 }
 
+enum OrderStatus {
+  delivered
+  cancelled
+  partially_delivered
+}
+
 /// Models
 
 model PointOfInterest {
@@ -39,7 +45,6 @@ model PointOfInterest {
   longitude Float
   type      PointOfInterestType
 
-  // Relación inversa en Plan (como punto de inicio y fin)
   startPlans Plan[] @relation("PlanStartPoint")
   endPlans   Plan[] @relation("PlanEndPoint")
 }
@@ -69,7 +74,6 @@ model Address {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
 
-  // Ventanas de tiempo opcionales (modelo TimeWindow)
   firstDeliveryTimeWindowId  String?
   firstDeliveryTimeWindow    TimeWindow? @relation("FirstDelivery", fields: [firstDeliveryTimeWindowId], references: [id])
   secondDeliveryTimeWindowId String?
@@ -85,7 +89,6 @@ model TimeWindow {
   openingTime DateTime
   closingTime DateTime
 
-  // Relaciones inversas (opcional, si se desea consultar desde Address)
   firstForAddresses  Address[] @relation("FirstDelivery")
   secondForAddresses Address[] @relation("SecondDelivery")
 }
@@ -103,7 +106,7 @@ model Plan {
   operationType     OperationType
   date              DateTime
   activeDates       DateTime[]
-  assignedUserId    String
+  assignedUserId    String?
   businessSegmentId String
   businessSegment   BusinessSegment @relation(fields: [businessSegmentId], references: [id])
 
@@ -189,7 +192,7 @@ model Order {
   requiresSignature Boolean
   actualValue       Float
   notes             String?
-  status            String
+  status            OrderStatus
   statusConfirmed   Boolean
   statusTimestamp   DateTime?
 
@@ -199,7 +202,8 @@ model Order {
   pickupVisitId   String?
   pickupVisit     Visit?  @relation("PickupVisitOrders", fields: [pickupVisitId], references: [id])
 
-  lineItems LineItem[]
+  lineItems             LineItem[]
+  deliveryReassignments DeliveryReassignment[]
 }
 
 model LineItem {
@@ -218,7 +222,8 @@ model LineItem {
   actualQuantity   Float
   actualValue      Float
   status           String
-  returnedReasonId String? // Referencia opcional a Reason (por ejemplo, "returned-product")
+  returnedReasonId String?
+  returnedReason   Reason? @relation(fields: [returnedReasonId], references: [id])
   notes            String?
 }
 
@@ -247,6 +252,7 @@ model PaymentMethod {
 model DeliveryReassignment {
   id                 String   @id @default(cuid())
   orderId            String
+  order              Order    @relation(fields: [orderId], references: [id])
   fromDeliveryPlanId String
   fromOrderGroupId   String?
   toDeliveryPlanId   String
@@ -346,4 +352,6 @@ model Reason {
   id      String @id
   labelEn String
   labelEs String
+
+  lineItems LineItem[]
 }

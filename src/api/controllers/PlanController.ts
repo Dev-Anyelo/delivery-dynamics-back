@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "../../lib/db";
 import { Request, Response } from "express";
-import { PlanSchema } from "../../schemas/schemas";
+import { PlanSchema, PlansSchema } from "../../schemas/schemas";
 
 import {
   getExternalPlan,
@@ -172,35 +172,36 @@ export const getPlanByDateAndUser = async (
 };
 
 // Create new plan
-export const createPlan = async (
+export const createPlans = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const validatedData = PlanSchema.parse(req.body);
+    const validatedPlans = PlansSchema.parse(req.body);
+    const newPlans = [];
 
-    const existingPlan = await planExists(validatedData.id);
+    for (const plan of validatedPlans) {
+      const existingPlan = await planExists(plan.id);
+      if (existingPlan) {
+        return sendResponse(
+          res,
+          400,
+          false,
+          `El plan con ID '${plan.id}' ya existe.`
+        );
+      }
 
-    if (existingPlan) {
-      return sendResponse(
-        res,
-        409,
-        false,
-        "Plan ya existe en la base de datos."
-      );
+      const newPlan = await createNewPlan(plan);
+      newPlans.push(newPlan);
     }
 
-    // Crear nuevo plan
-    const newPlan = await createNewPlan(validatedData);
-
-    sendResponse(res, 201, true, "Plan creado exitosamente.", newPlan);
+    sendResponse(res, 201, true, "Planes creados exitosamente.", newPlans);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return sendResponse(res, 400, false, "Datos inválidos.", error.errors);
     }
-
-    console.error("Error al crear el plan:", error);
-    sendResponse(res, 500, false, "Error al crear el plan.");
+    console.error("Error al crear los planes:", error);
+    sendResponse(res, 500, false, "Error al crear los planes.");
   }
 };
 

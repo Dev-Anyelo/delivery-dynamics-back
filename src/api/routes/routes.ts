@@ -2,11 +2,11 @@ import { Router } from "express";
 
 import {
   getAllPlans,
-  createPlan,
   deletePlan,
   getPlanById,
   updatePlan,
   getPlanByDateAndUser,
+  createPlans,
 } from "../controllers/PlanController";
 
 import {
@@ -24,9 +24,10 @@ import {
 const router = Router();
 
 // ------ PLANS ------ //
-
 router.get("/plans", async (req, res) => {
   const { date, assignedUserId } = req.query;
+
+  // If date and assignedUserId are provided, get plan by date and user
   if (date && assignedUserId) {
     return getPlanByDateAndUser(req, res);
   } else {
@@ -35,12 +36,11 @@ router.get("/plans", async (req, res) => {
 });
 
 router.get("/plans/:id", getPlanById);
-router.post("/plans", createPlan);
+router.post("/plans", createPlans);
 router.put("/plans/:id", updatePlan);
 router.delete("/plans/:id", deletePlan);
 
 // ------ ROUTES GROUP ------ //
-
 router.get("/route-groups", getAllRouteGroups);
 router.get("/route-groups/:id", getRouteGroupsById);
 router.post("/route-groups", createRouteGroup);
