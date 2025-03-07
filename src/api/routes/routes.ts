@@ -1,7 +1,6 @@
 import { Router } from "express";
 
 import {
-  getAllPlans,
   deletePlan,
   getPlanById,
   updatePlan,
@@ -24,17 +23,7 @@ import {
 const router = Router();
 
 // ------ PLANS ------ //
-router.get("/plans", async (req, res) => {
-  const { date, assignedUserId } = req.query;
-
-  // If date and assignedUserId are provided, get plan by date and user
-  if (date && assignedUserId) {
-    return getPlanByDateAndUser(req, res);
-  } else {
-    return getAllPlans(req, res);
-  }
-});
-
+router.get("/plans", getPlanByDateAndUser);
 router.get("/plans/:id", getPlanById);
 router.post("/plans", createPlans);
 router.put("/plans/:id", updatePlan);

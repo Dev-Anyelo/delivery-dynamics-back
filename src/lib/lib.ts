@@ -28,25 +28,6 @@ export const getExternalPlan = async (id: string): Promise<any> => {
   }
 };
 
-// Get all plans from the external service
-export const getExternalPlans = async (): Promise<any> => {
-  const { PLAN_EXTERNAL_SERVICE_URL, BEARER_TOKEN } = config;
-
-  try {
-    const response = await axios.get(PLAN_EXTERNAL_SERVICE_URL, {
-      headers: {
-        Authorization: `Bearer ${BEARER_TOKEN.trim()}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-
-    return response.data;
-  } catch (error) {
-    return handleExternalAPIError(error);
-  }
-};
-
 // Get plan by date and user from the external service
 export const getExternalPlanByDateAndUser = async (
   date: string,
