@@ -13,6 +13,7 @@ import {
   planExists,
   sendResponse,
   getExternalPlanByDateAndUser,
+  fetchPlanByDateAndUserFromDb,
 } from "../../lib/lib";
 
 // Get all plans from database
@@ -36,19 +37,16 @@ export const getPlanById = async (
 ): Promise<void> => {
   const { id } = req.params;
 
-  if (!id || id.trim() === "")
-    return sendResponse(
-      res,
-      400,
-      false,
-      "ID del plan no proporcionado o inválido."
-    );
+  if (!id || id.trim() === "") {
+    sendResponse(res, 400, false, "ID del plan no proporcionado o inválido.");
+    return;
+  }
 
   try {
     const planFromDB = await fetchPlanByIdFromDB(id);
 
     if (planFromDB) {
-      return sendResponse(
+      sendResponse(
         res,
         200,
         true,
@@ -57,18 +55,18 @@ export const getPlanById = async (
       );
     }
 
-    // If not in database, fetch from external API
     try {
       const planFromExternalService = await getExternalPlan(id);
 
       if (planFromExternalService) {
-        return sendResponse(
+        sendResponse(
           res,
           200,
           true,
           "Plan encontrado en la API externa",
           planFromExternalService
         );
+        return;
       }
     } catch (apiError) {
       console.log("Error al obtener plan de la API externa:", apiError);
@@ -76,15 +74,16 @@ export const getPlanById = async (
       return;
     }
 
-    return sendResponse(
+    sendResponse(
       res,
       404,
       false,
       `Plan con ID '${id}' no encontrado en ninguna fuente.`
     );
+    return;
   } catch (error) {
     console.error(`Error al obtener el plan ${id}:`, error);
-    return sendResponse(res, 500, false, "Error interno al buscar el plan.");
+    sendResponse(res, 500, false, "Error interno al buscar el plan.");
   }
 };
 
@@ -98,31 +97,31 @@ export const getPlanByDateAndUser = async (
   console.log("Parámetros recibidos:", date, assignedUserId);
 
   if (!date || !assignedUserId) {
-    return sendResponse(
+    sendResponse(
       res,
       400,
       false,
-      "Parámetros de búsqueda no proporcionados."
+      "Parámetros de búsqueda no proporcionados o inválidos"
     );
+    return;
   }
 
   try {
-    const plans = await db.plan.findMany({
-      where: {
-        date: new Date(date as string),
-        assignedUserId: assignedUserId as string,
-      },
-    });
+    const plans = await fetchPlanByDateAndUserFromDb(
+      date as string,
+      assignedUserId as string
+    );
 
-    if (plans && plans.length > 0) {
+    if (plans && plans.orders && plans.orders.length > 0) {
       console.log("Planes encontrados en BD:", plans);
-      return sendResponse(
+      sendResponse(
         res,
         200,
         true,
         "Planes encontrados en la base de datos.",
         plans
       );
+      return;
     }
 
     try {
@@ -131,38 +130,32 @@ export const getPlanByDateAndUser = async (
         assignedUserId as string
       );
 
-      if (plansFromExternalService) {
-        console.log(
-          "Planes obtenidos desde API externa:",
-          plansFromExternalService
-        );
-        return sendResponse(
+      if (!plansFromExternalService || plansFromExternalService.length === 0) {
+        sendResponse(
           res,
-          200,
-          true,
-          "Planes encontrados en la API externa.",
-          plansFromExternalService
+          404,
+          false,
+          `No se encontraron planes para la fecha ${date} y el usuario ${assignedUserId}.`
         );
+        return;
       }
+
+      sendResponse(
+        res,
+        200,
+        true,
+        "Planes encontrados en la API externa.",
+        plansFromExternalService
+      );
+      return;
     } catch (apiError) {
       console.error("Error al obtener planes de la API externa:", apiError);
-      return sendResponse(
-        res,
-        500,
-        false,
-        "Error al obtener planes de la API externa."
-      );
+      handleExternalAPIError(apiError);
+      return;
     }
-
-    return sendResponse(
-      res,
-      404,
-      false,
-      "Planes no encontrados en ninguna fuente."
-    );
   } catch (error) {
     console.error("Error al buscar planes por fecha y usuario:", error);
-    return sendResponse(
+    sendResponse(
       res,
       500,
       false,
@@ -183,12 +176,13 @@ export const createPlans = async (
     for (const plan of validatedPlans) {
       const existingPlan = await planExists(plan.id);
       if (existingPlan) {
-        return sendResponse(
+        sendResponse(
           res,
-          400,
+          409,
           false,
-          `El plan con ID '${plan.id}' ya existe.`
+          `El plan con ID ${plan.id} ya existe en la base de datos.`
         );
+        return;
       }
 
       const newPlan = await createNewPlan(plan);
@@ -198,7 +192,9 @@ export const createPlans = async (
     sendResponse(res, 201, true, "Planes creados exitosamente.", newPlans);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return sendResponse(res, 400, false, "Datos inválidos.", error.errors);
+      console.error("Datos inválidos al crear planes:", error.errors);
+      sendResponse(res, 400, false, "Datos inválidos", error.errors);
+      return;
     }
     console.error("Error al crear los planes:", error);
     sendResponse(res, 500, false, "Error al crear los planes.");
@@ -213,31 +209,23 @@ export const updatePlan = async (
   const { id } = req.params;
 
   if (!id || id.trim() === "") {
-    return sendResponse(
-      res,
-      400,
-      false,
-      "ID del plan no proporcionado o inválido."
-    );
+    sendResponse(res, 400, false, "ID del plan no proporcionado o inválido.");
+    return;
   }
 
   try {
     const existingPlan = await planExists(id);
 
     if (!existingPlan) {
-      return sendResponse(res, 404, false, "Plan no encontrado.");
+      sendResponse(res, 404, false, "Plan no encontrado.");
+      return;
     }
 
     const validatedData = PlanSchema.safeParse(req.body);
 
     if (!validatedData.success) {
-      return sendResponse(
-        res,
-        400,
-        false,
-        "Datos inválidos",
-        validatedData.error.format()
-      );
+      sendResponse(res, 400, false, "Datos inválidos.", validatedData.error);
+      return;
     }
 
     const updatedPlan = await db.plan.update({
@@ -260,18 +248,17 @@ export const deletePlan = async (
   const { id } = req.params;
 
   if (!id || id.trim() === "") {
-    return sendResponse(
-      res,
-      400,
-      false,
-      "ID del plan no proporcionado o inválido."
-    );
+    sendResponse(res, 400, false, "ID del plan no proporcionado o inválido.");
+    return;
   }
 
   try {
     const plan = await planExists(id);
 
-    if (!plan) return sendResponse(res, 404, false, "Plan no encontrado.");
+    if (!plan) {
+      sendResponse(res, 404, false, "Plan no encontrado.");
+      return;
+    }
 
     await deletePlanById(id);
 

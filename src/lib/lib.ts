@@ -54,6 +54,34 @@ export const getExternalPlanByDateAndUser = async (
   }
 };
 
+// Get plan by date and user form the database
+export const fetchPlanByDateAndUserFromDb = async (
+  date: string,
+  assignedUserId: string
+) => {
+  try {
+    const formattedDate = new Date(date).toISOString();
+    return await db.plan.findFirst({
+      where: {
+        date: formattedDate,
+        assignedUserId,
+      },
+      include: {
+        route: true,
+        orders: true,
+        visits: true,
+        startPoint: true,
+        endPoint: true,
+        truck: true,
+        businessSegment: true,
+      },
+    });
+  } catch (error) {
+    console.error("Error al consultar plan en la base de datos:", error);
+    throw new Error("Error al obtener el plan.");
+  }
+};
+
 // Get all plans from the database
 export const fetchAllPlans = async () => {
   try {
@@ -132,17 +160,6 @@ export const fetchPlanByIdFromDB = async (id: string) => {
 // Validate if a plan exists
 export const planExists = async (id: string) => {
   return db.plan.findUnique({ where: { id } });
-};
-
-// Send a response
-export const sendResponse = (
-  res: Response,
-  status: number,
-  success: boolean,
-  message: string,
-  data: any = null
-) => {
-  res.status(status).json({ success, message, data });
 };
 
 // Update a plan by ID
@@ -365,4 +382,19 @@ export const handleExternalAPIError = (error: any): null => {
     console.error("Error desconocido:", error);
   }
   return null;
+};
+
+// Send a response
+export const sendResponse = (
+  res: Response,
+  status: number,
+  success: boolean,
+  message: string,
+  data?: any
+) => {
+  return res.status(status).json({
+    success,
+    message,
+    data,
+  });
 };

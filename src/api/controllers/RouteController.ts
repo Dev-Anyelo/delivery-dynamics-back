@@ -29,13 +29,14 @@ export const getAllRouteGroups = async (
     const routesFromDB = await fetchAllRouteGroups();
 
     if (routesFromDB && routesFromDB.length > 0) {
-      return sendResponse(
+      sendResponse(
         res,
         200,
         true,
         "Rutas encontradas en la base de datos.",
         routesFromDB
       );
+      return;
     }
 
     // No routes in DB, fetch from external API
@@ -43,34 +44,24 @@ export const getAllRouteGroups = async (
       const routesFromExternalService = await getExternalRouteGroups();
 
       if (routesFromExternalService && routesFromExternalService.length > 0) {
-        return sendResponse(
+        sendResponse(
           res,
           200,
           true,
           "Rutas encontradas en la API externa.",
           routesFromExternalService
         );
+        return;
       }
 
-      return sendResponse(
-        res,
-        404,
-        false,
-        "No se encontraron rutas en ninguna fuente"
-      );
+      sendResponse(res, 404, false, "No se encontraron rutas.");
     } catch (error) {
       console.error("Error al obtener las rutas de la API externa:", error);
       handleExternalAPIError(error);
-      return sendResponse(
-        res,
-        500,
-        false,
-        "Error al obtener rutas de la API externa"
-      );
     }
   } catch (error: unknown) {
-    console.error("Error en el controlador al cargar las rutas:", error);
-    sendResponse(res, 500, false, "Error al cargar las rutas.");
+    console.error("Error al obtener las rutas:", error);
+    sendResponse(res, 500, false, "Error al obtener las rutas.");
   }
 };
 
@@ -81,25 +72,23 @@ export const getRouteGroupsById = async (
 ): Promise<void> => {
   const { id } = req.params;
 
-  if (!id || id.trim() === "")
-    return sendResponse(
-      res,
-      400,
-      false,
-      "ID de la ruta no proporcionado o inválido."
-    );
+  if (!id || id.trim() === "") {
+    sendResponse(res, 400, false, "ID de la ruta no proporcionado o inválido.");
+    return;
+  }
 
   try {
     const routeFromDB = await fetchRouteByIdFromDB(id);
 
     if (routeFromDB) {
-      return sendResponse(
+      sendResponse(
         res,
         200,
         true,
         "Ruta encontrada en la base de datos.",
         routeFromDB
       );
+      return;
     }
 
     // If not in database, fetch from external API
@@ -107,21 +96,22 @@ export const getRouteGroupsById = async (
       const routeFromExternalService = await getExternalRouteGroups(id);
 
       if (routeFromExternalService) {
-        return sendResponse(
+        sendResponse(
           res,
           200,
           true,
           "Ruta encontrada en la API externa",
           routeFromExternalService
         );
+        return;
       }
     } catch (apiError) {
-      console.log("Error al obtener la ruta de la API externa:", apiError);
+      console.log("Error al obtener ruta de la API externa:", apiError);
       handleExternalAPIError(apiError);
       return;
     }
 
-    return sendResponse(
+    sendResponse(
       res,
       404,
       false,
@@ -129,7 +119,7 @@ export const getRouteGroupsById = async (
     );
   } catch (error) {
     console.error(`Error al obtener la ruta ${id}:`, error);
-    return sendResponse(res, 500, false, "Error interno al buscar la ruta.");
+    sendResponse(res, 500, false, "Error interno al buscar la ruta.");
   }
 };
 
@@ -145,12 +135,13 @@ export const createRouteGroup = async (
     const existingRoute = await routeExists(validatedData.id);
 
     if (existingRoute) {
-      return sendResponse(
+      sendResponse(
         res,
         409,
         false,
-        "La Ruta ya existe en la base de datos."
+        "El grupo de rutas ya existe en la base de datos."
       );
+      return;
     }
 
     // Crear nueva ruta
@@ -159,7 +150,8 @@ export const createRouteGroup = async (
     sendResponse(res, 201, true, "Ruta creada exitosamente.", newRouteGroup);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return sendResponse(res, 400, false, "Datos inválidos.", error.errors);
+      sendResponse(res, 400, false, "Datos inválidos.", error.errors);
+      return;
     }
 
     console.error("Error al crear la ruta:", error);
@@ -175,31 +167,28 @@ export const updateRouteGroup = async (
   const { id } = req.params;
 
   if (!id || id.trim() === "") {
-    return sendResponse(
+    sendResponse(
       res,
       400,
       false,
       "ID del route group no proporcionado o inválido."
     );
+    return;
   }
 
   try {
     const existingRoute = await routeExists(id);
 
     if (!existingRoute) {
-      return sendResponse(res, 404, false, "Route Group no encontrado.");
+      sendResponse(res, 404, false, "Route Group no encontrado.");
+      return;
     }
 
     const validatedData = RouteGroupSchema.safeParse(req.body);
 
     if (!validatedData.success) {
-      return sendResponse(
-        res,
-        400,
-        false,
-        "Datos inválidos",
-        validatedData.error.format()
-      );
+      sendResponse(res, 400, false, "Datos inválidos.", validatedData.error);
+      return;
     }
 
     const updateRouteGroup = await updateRouteGroupFromDB(
@@ -228,19 +217,21 @@ export const deleteRouteGroup = async (
   const { id } = req.params;
 
   if (!id || id.trim() === "") {
-    return sendResponse(
+    sendResponse(
       res,
       400,
       false,
       "ID del route group no proporcionado o inválido."
     );
+    return;
   }
 
   try {
     const existingRoute = await routeExists(id);
 
     if (!existingRoute) {
-      return sendResponse(res, 404, false, "Route Group no encontrado.");
+      sendResponse(res, 404, false, "Route Group no encontrado.");
+      return;
     }
 
     await deleteRouteGroupById(id);
@@ -262,34 +253,32 @@ export const getRouteByID = async (
   const { routeGroupId, routeId } = req.params;
 
   if (!routeGroupId || routeGroupId.trim() === "") {
-    return sendResponse(
+    sendResponse(
       res,
       400,
       false,
       "ID de grupo de rutas no proporcionado o inválido."
     );
+    return;
   }
 
   if (!routeId || routeId.trim() === "") {
-    return sendResponse(
-      res,
-      400,
-      false,
-      "ID de ruta no proporcionado o inválido."
-    );
+    sendResponse(res, 400, false, "ID de ruta no proporcionado o inválido.");
+    return;
   }
 
   try {
     const routes = await fetchRouteByID(routeGroupId, routeId);
 
     if (routes && routes.length > 0) {
-      return sendResponse(
+      sendResponse(
         res,
         200,
         true,
         "Rutas encontradas en la base de datos.",
         routes
       );
+      return;
     }
 
     // No routes in DB, fetch from external API
@@ -297,26 +286,28 @@ export const getRouteByID = async (
       const externalRoute = await getExternalRouteById(routeGroupId, routeId);
 
       if (externalRoute) {
-        return sendResponse(
+        sendResponse(
           res,
           200,
           true,
           "Rutas encontradas en la API externa.",
           externalRoute
         );
+        return;
       }
     } catch (error) {
       console.error("Error al obtener las rutas de la API externa:", error);
       handleExternalAPIError(error);
-      return sendResponse(
+      sendResponse(
         res,
         500,
         false,
         "Error al obtener rutas de la API externa."
       );
+      return;
     }
 
-    return sendResponse(res, 404, false, "No se encontraron rutas.");
+    sendResponse(res, 404, false, "No se encontraron rutas.");
   } catch (error) {
     console.error("Error al obtener las rutas:", error);
     sendResponse(res, 500, false, "Error al obtener las rutas.");
@@ -331,12 +322,13 @@ export const createRoute = async (
   const { routeGroupId } = req.params;
 
   if (!routeGroupId || routeGroupId.trim() === "") {
-    return sendResponse(
+    sendResponse(
       res,
       400,
       false,
       "ID de grupo de rutas no proporcionado o inválido."
     );
+    return;
   }
 
   try {
@@ -345,12 +337,8 @@ export const createRoute = async (
     const existingRoute = await routeExists(validatedData.id);
 
     if (existingRoute) {
-      return sendResponse(
-        res,
-        409,
-        false,
-        "La ruta ya existe en la base de datos."
-      );
+      sendResponse(res, 409, false, "La ruta ya existe en la base de datos.");
+      return;
     }
 
     const newRoute = await db.route.create({
@@ -360,7 +348,8 @@ export const createRoute = async (
     sendResponse(res, 201, true, "Ruta creada exitosamente.", newRoute);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return sendResponse(res, 400, false, "Datos inválidos.", error.errors);
+      sendResponse(res, 400, false, "Datos inválidos.", error.errors);
+      return;
     }
 
     console.error("Error al crear la ruta:", error);
@@ -376,40 +365,33 @@ export const updateRoute = async (
   const { routeGroupId, routeId } = req.params;
 
   if (!routeGroupId || routeGroupId.trim() === "") {
-    return sendResponse(
+    sendResponse(
       res,
       400,
       false,
       "ID de grupo de rutas no proporcionado o inválido."
     );
+    return;
   }
 
   if (!routeId || routeId.trim() === "") {
-    return sendResponse(
-      res,
-      400,
-      false,
-      "ID de ruta no proporcionado o inválido."
-    );
+    sendResponse(res, 400, false, "ID de ruta no proporcionado o inválido.");
+    return;
   }
 
   try {
     const existingRoute = await routeExists(routeId);
 
     if (!existingRoute) {
-      return sendResponse(res, 404, false, "Ruta no encontrada.");
+      sendResponse(res, 404, false, "Ruta no encontrada.");
+      return;
     }
 
     const validatedData = RouteSchema.safeParse(req.body);
 
     if (!validatedData.success) {
-      return sendResponse(
-        res,
-        400,
-        false,
-        "Datos inválidos",
-        validatedData.error.format()
-      );
+      sendResponse(res, 400, false, "Datos inválidos.", validatedData.error);
+      return;
     }
 
     const updatedRoute = await db.route.update({
@@ -438,28 +420,26 @@ export const deleteRoute = async (
   const { routeGroupId, routeId } = req.params;
 
   if (!routeGroupId || routeGroupId.trim() === "") {
-    return sendResponse(
+    sendResponse(
       res,
       400,
       false,
       "ID de grupo de rutas no proporcionado o inválido."
     );
+    return;
   }
 
   if (!routeId || routeId.trim() === "") {
-    return sendResponse(
-      res,
-      400,
-      false,
-      "ID de ruta no proporcionado o inválido."
-    );
+    sendResponse(res, 400, false, "ID de ruta no proporcionado o inválido.");
+    return;
   }
 
   try {
     const existingRoute = await routeExists(routeId);
 
     if (!existingRoute) {
-      return sendResponse(res, 404, false, "Ruta no encontrada.");
+      sendResponse(res, 404, false, "Ruta no encontrada.");
+      return;
     }
 
     await deleteRouteById(routeId);
