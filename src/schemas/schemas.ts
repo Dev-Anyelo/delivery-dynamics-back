@@ -233,20 +233,6 @@ export const PlanSchema: z.ZodType<any> = z.object({
   startPoint: z.lazy(() => PointOfInterestSchema),
   endPointId: z.string(),
   endPoint: z.lazy(() => PointOfInterestSchema),
-  plannedStartTimestamp: z.coerce.date(),
-  plannedEndTimestamp: z.coerce.date(),
-  plannedTotalTimeH: z.number(),
-  plannedDriveTimeH: z.number(),
-  plannedServiceTimeH: z.number(),
-  plannedBreakTimeH: z.number().nullable(),
-  plannedWaitTimeH: z.number().nullable(),
-  plannedDistanceKm: z.number(),
-  actualStartTimestamp: z.coerce.date().optional().nullable(),
-  actualEndTimestamp: z.coerce.date().optional().nullable(),
-  startLatitude: z.number().optional().nullable(),
-  startLongitude: z.number().optional().nullable(),
-  endLatitude: z.number().optional().nullable(),
-  endLongitude: z.number().optional().nullable(),
   visits: z.array(z.lazy(() => VisitSchema)).optional(),
   orders: z.array(z.lazy(() => OrderSchema)).optional(),
 });
@@ -284,7 +270,7 @@ export const AddressSchema: z.ZodType<any> = z.object({
   firstDeliveryTimeWindow: z
     .lazy(() => TimeWindowSchema)
     .optional()
-    .nullable(),  
+    .nullable(),
   secondDeliveryTimeWindowId: z.string().optional(),
   secondDeliveryTimeWindow: z
     .lazy(() => TimeWindowSchema)
