@@ -8,7 +8,7 @@ import {
   createNewPlan,
   deletePlanById,
   fetchAllPlans,
-  fetchPlanByIdFromDB,
+  fetchPlanByIDFromDB,
   handleExternalAPIError,
   planExists,
   sendResponse,
@@ -43,7 +43,7 @@ export const getPlanById = async (
   }
 
   try {
-    const planFromDB = await fetchPlanByIdFromDB(id);
+    const planFromDB = await fetchPlanByIDFromDB(id);
 
     if (planFromDB) {
       sendResponse(

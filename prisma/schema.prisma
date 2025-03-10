@@ -38,25 +38,27 @@ enum OrderStatus {
   cancelled
 }
 
-/// Models
+// --- MODELOS ---
 
 model PointOfInterest {
   id        String              @id
   name      String
-  address   String
+  address   String?
   latitude  Float
   longitude Float
   type      PointOfInterestType
 
-  startPlans Plan[] @relation("PlanStartPoint")
-  endPlans   Plan[] @relation("PlanEndPoint")
+  startPlans  Plan[]  @relation("PlanStartPoint")
+  endPlans    Plan[]  @relation("PlanEndPoint")
+  routeStarts Route[] @relation("RouteStartPoint")
+  routeEnds   Route[] @relation("RouteEndPoint")
 }
 
 model Customer {
-  id    String @id
+  id    String  @id
   name  String
-  phone String
-  email String
+  phone String?
+  email String?
 
   addresses Address[]
   visits    Visit[]
@@ -65,17 +67,17 @@ model Customer {
 
 model Address {
   id           String  @id
-  label        String
+  label        String?
   address      String
   latitude     Float
   longitude    Float
-  phone        String
+  phone        String?
   notes        String?
-  contact      String
+  contact      String?
   businessType String
 
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId String? // hecho opcional
+  customer   Customer? @relation(fields: [customerId], references: [id])
 
   firstDeliveryTimeWindowId  String?
   firstDeliveryTimeWindow    TimeWindow? @relation("FirstDelivery", fields: [firstDeliveryTimeWindowId], references: [id])
@@ -105,39 +107,48 @@ model BusinessSegment {
 }
 
 model Plan {
-  id                String          @id
+  id                String           @id
   operationType     OperationType
   date              DateTime
   activeDates       DateTime[]
   assignedUserId    String?
-  businessSegmentId String
-  businessSegment   BusinessSegment @relation(fields: [businessSegmentId], references: [id])
+  businessSegmentId String?
+  businessSegment   BusinessSegment? @relation(fields: [businessSegmentId], references: [id])
 
-  routeId String?
-  route   Route?  @relation(fields: [routeId], references: [id])
-  truckId String?
-  truck   Truck?  @relation(fields: [truckId], references: [id])
+  routeId      String?
+  route        Route?  @relation(fields: [routeId], references: [id])
+  truckId      String?
+  truck        Truck?  @relation(fields: [truckId], references: [id])
+  truckTypeId  String?
+  routeGroupId String?
 
   startPointId String
   startPoint   PointOfInterest @relation("PlanStartPoint", fields: [startPointId], references: [id])
   endPointId   String
   endPoint     PointOfInterest @relation("PlanEndPoint", fields: [endPointId], references: [id])
 
-  plannedStartTimestamp DateTime
-  plannedEndTimestamp   DateTime
-  plannedTotalTimeH     Float
-  plannedDriveTimeH     Float
-  plannedServiceTimeH   Float
-  plannedBreakTimeH     Float
-  plannedWaitTimeH      Float
-  plannedDistanceKm     Float
+  plannedStartTimestamp DateTime?
+  plannedEndTimestamp   DateTime?
+  plannedTotalTimeH     Float?
+  plannedDriveTimeH     Float?
+  plannedServiceTimeH   Float?
+  plannedWaitTimeH      Float?
+  plannedBreakTimeH     Float?
+  plannedEndBreakTimeH  Float?
+  plannedDistanceKm     Float?
 
   actualStartTimestamp DateTime?
   actualEndTimestamp   DateTime?
-  startLatitude        Float
-  startLongitude       Float
-  endLatitude          Float
-  endLongitude         Float
+  startLatitude        Float?
+  startLongitude       Float?
+  endLatitude          Float?
+  endLongitude         Float?
+
+  batchId             String?
+  enableTelematicsGps Boolean
+  enableAutoArrival   Boolean
+  enableAutoStart     Boolean
+  numHelpers          Int
 
   visits Visit[]
   orders Order[]
@@ -145,18 +156,17 @@ model Plan {
 
 model Visit {
   id       String @id
-  sequence Int
+  sequence Int?
 
-  planId String
-  plan   Plan   @relation(fields: [planId], references: [id])
+  planId String?
+  plan   Plan?   @relation(fields: [planId], references: [id])
 
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
 
-  addressId String
-  address   Address @relation(fields: [addressId], references: [id])
+  addressId String?
+  address   Address? @relation(fields: [addressId], references: [id])
 
-  // Relaciones separadas para órdenes de entrega y de recogida
   deliveryOrders Order[] @relation("DeliveryVisitOrders")
   pickupOrders   Order[] @relation("PickupVisitOrders")
 
@@ -172,8 +182,8 @@ model Order {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
 
-  addressId String
-  address   Address @relation(fields: [addressId], references: [id])
+  addressId String?
+  address   Address? @relation(fields: [addressId], references: [id])
 
   salesRepresentativeId String?
   salesRepresentative   SalesRepresentative? @relation(fields: [salesRepresentativeId], references: [id])
@@ -184,22 +194,21 @@ model Order {
   orderGroup   OrderGroup? @relation(fields: [orderGroupId], references: [id])
 
   startPointId      String?
-  businessSegmentId String
-  businessSegment   BusinessSegment @relation(fields: [businessSegmentId], references: [id])
+  businessSegmentId String?
+  businessSegment   BusinessSegment? @relation(fields: [businessSegmentId], references: [id])
 
   value             Float
-  volume            Float
-  weight            Float
-  cases             Int
+  volume            Float?
+  weight            Float?
+  cases             Int?
   instructions      String?
   requiresSignature Boolean
   actualValue       Float
   notes             String?
   status            OrderStatus
-  statusConfirmed   Boolean
+  statusConfirmed   Boolean?
   statusTimestamp   DateTime?
 
-  // Relación a Visit: una para delivery y otra para pickup.
   deliveryVisitId String?
   deliveryVisit   Visit?  @relation("DeliveryVisitOrders", fields: [deliveryVisitId], references: [id])
   pickupVisitId   String?
@@ -210,18 +219,18 @@ model Order {
 }
 
 model LineItem {
-  id      String @id
-  orderId String
-  order   Order  @relation(fields: [orderId], references: [id])
+  id      String  @id
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
 
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
 
-  lineNumber       Int
+  lineNumber       Int?
   quantity         Float
   unitPrice        Float
   taxRate          Float
-  value            Float
+  value            Float?
   actualQuantity   Float
   actualValue      Float
   status           String
@@ -293,7 +302,10 @@ model Route {
   routeGroup   RouteGroup @relation(fields: [routeGroupId], references: [id])
 
   startPointId String
-  endPointId   String
+  startPoint   PointOfInterest @relation("RouteStartPoint", fields: [startPointId], references: [id])
+
+  endPointId String
+  endPoint   PointOfInterest @relation("RouteEndPoint", fields: [endPointId], references: [id])
 
   assignedTruckId String?
   assignedTruck   Truck?  @relation("AssignedTruck", fields: [assignedTruckId], references: [id])
@@ -321,10 +333,10 @@ model RouteStop {
 }
 
 model Truck {
-  id          String    @id
-  label       String
-  truckTypeId String
-  truckType   TruckType @relation(fields: [truckTypeId], references: [id])
+  id          String     @id
+  label       String?
+  truckTypeId String?
+  truckType   TruckType? @relation(fields: [truckTypeId], references: [id])
 
   plans  Plan[]
   routes Route[] @relation("AssignedTruck")
