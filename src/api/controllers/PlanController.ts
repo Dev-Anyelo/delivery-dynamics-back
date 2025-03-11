@@ -14,6 +14,7 @@ import {
   sendResponse,
   getExternalPlanByDateAndUser,
   fetchPlanByDateAndUserFromDb,
+  transformPlanFromDB,
 } from "../../lib/lib";
 
 // Get all plans from database
@@ -43,35 +44,36 @@ export const getPlanById = async (
   }
 
   try {
-    const planFromDB = await fetchPlanByIDFromDB(id);
+    const dbPlan = await fetchPlanByIDFromDB(id);
 
-    if (planFromDB) {
+    if (dbPlan) {
+      const transformedPlan = transformPlanFromDB(dbPlan);
       sendResponse(
         res,
         200,
         true,
         "Plan encontrado en la base de datos.",
-        planFromDB
+        transformedPlan
       );
+      return;
     }
 
     try {
-      const planFromExternalService = await getExternalPlan(id);
+      const externalPlan = await getExternalPlan(id);
 
-      if (planFromExternalService) {
+      if (externalPlan) {
         sendResponse(
           res,
           200,
           true,
           "Plan encontrado en la API externa",
-          planFromExternalService
+          externalPlan
         );
         return;
       }
     } catch (apiError) {
       console.log("Error al obtener plan de la API externa:", apiError);
       handleExternalAPIError(apiError);
-      return;
     }
 
     sendResponse(
@@ -80,7 +82,6 @@ export const getPlanById = async (
       false,
       `Plan con ID '${id}' no encontrado en ninguna fuente.`
     );
-    return;
   } catch (error) {
     console.error(`Error al obtener el plan ${id}:`, error);
     sendResponse(res, 500, false, "Error interno al buscar el plan.");

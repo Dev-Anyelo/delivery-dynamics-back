@@ -4,8 +4,8 @@ import cuid from "cuid";
 import { db } from "../lib/db";
 import { Response } from "express";
 import config from "../config/config";
-import { LineItem, Order, Visit } from "../types/types";
 import { PlanSchema, RouteGroupSchema } from "../schemas/schemas";
+import { LineItem, Order, PaymentMethod, Plan, Visit } from "../types/types";
 
 // -------- PLANS -------- //
 
@@ -138,10 +138,10 @@ export const fetchAllPlans = async () => {
   }
 };
 
-// Get a plan by ID from the database
+// Get a plan by ID from the database (Versión Mejorada)
 export const fetchPlanByIDFromDB = async (id: string) => {
   try {
-    return await db.plan.findUnique({
+    const plan = await db.plan.findUnique({
       where: { id },
       include: {
         route: true,
@@ -162,9 +162,28 @@ export const fetchPlanByIDFromDB = async (id: string) => {
         },
         visits: {
           include: {
-            customer: true,
+            customer: {
+              include: {
+                addresses: true,
+              },
+            },
             address: true,
             deliveryOrders: {
+              include: {
+                customer: true,
+                address: true,
+                salesRepresentative: true,
+                orderGroup: true,
+                businessSegment: true,
+                lineItems: {
+                  include: {
+                    product: true,
+                    returnedReason: true,
+                  },
+                },
+              },
+            },
+            pickupOrders: {
               include: {
                 customer: true,
                 address: true,
@@ -185,14 +204,195 @@ export const fetchPlanByIDFromDB = async (id: string) => {
         },
         startPoint: true,
         endPoint: true,
-        truck: true,
+        truck: {
+          include: {
+            truckType: true,
+          },
+        },
         businessSegment: true,
       },
     });
+
+    return plan || null; // Asegurar retorno null si no existe
   } catch (error) {
-    console.error("Error al obtener ruta de la base de datos:", error);
-    throw new Error("Error al consultar la base de datos.");
+    console.error("Error en fetchPlanByIDFromDB:", error);
+    throw new Error("Error en la consulta de base de datos");
   }
+};
+
+// Transform plan from DB to API format (Versión Mejorada)
+export const transformPlanFromDB = (plan: Plan) => {
+  if (!plan) return null;
+
+  // Helper para manejo seguro de fechas
+  const safeDate = (date: Date | null | undefined): string | null => {
+    return date instanceof Date ? date.toISOString() : null;
+  };
+
+  // Helper para manejar arrays undefined
+  const safeArray = <T>(arr: T[] | undefined | null): T[] => arr || [];
+
+  return {
+    ...plan,
+    // Convertir todas las fechas a strings ISO
+    date: safeDate(plan.date),
+    activeDates: safeArray(plan.activeDates).map((d) =>
+      safeDate(d as Date | null | undefined)
+    ),
+    plannedStartTimestamp: safeDate(plan.plannedStartTimestamp),
+    plannedEndTimestamp: safeDate(plan.plannedEndTimestamp),
+    actualStartTimestamp: safeDate(plan.actualStartTimestamp),
+    actualEndTimestamp: safeDate(plan.actualEndTimestamp),
+
+    // Transformar visits con valores por defecto
+    visits: safeArray(plan.visits).map((visit: Visit) => ({
+      ...visit,
+      id: visit.id || null,
+      sequence: visit.sequence ?? null,
+      isReload: false,
+      plannedArrivalTimestamp: null,
+      plannedDepartureTimestamp: null,
+      plannedServiceTimeH: null,
+      plannedWaitTimeH: null,
+      plannedBreakTimeH: null,
+      plannedEarlyTimeH: null,
+      plannedLateTimeH: null,
+      plannedMissedTimeWindow: null,
+      actualArrivalTimestamp: safeDate(visit.actualArrivalTimestamp),
+      actualDepartureTimestamp: safeDate(visit.actualDepartureTimestamp),
+      skipped: null,
+      skippedReasonId: null,
+      postponed: null,
+      postponedReasonId: null,
+      noSales: null,
+      noSalesReasonId: null,
+
+      // Customer con datos geográficos consolidados
+      customer: visit.customer
+        ? {
+            ...visit.customer,
+            latitude:
+              visit.address?.latitude ??
+              visit.customer.addresses?.[0]?.latitude ??
+              null,
+            longitude:
+              visit.address?.longitude ??
+              visit.customer.addresses?.[0]?.longitude ??
+              null,
+            address:
+              visit.address?.address ??
+              visit.customer.addresses?.[0]?.address ??
+              null,
+            notes: visit.customer.notes || null,
+          }
+        : null,
+
+      // Orders y pickupOrders con transformación completa
+      orders: safeArray(visit.deliveryOrders).map((order: Order) => ({
+        ...order,
+        date: null,
+        cases: order.cases ?? null,
+        pallets: null,
+        cancelledReasonId: null,
+        postponedReasonId: null,
+        numberOfLineItems: safeArray(order.lineItems).length,
+
+        lineItems: safeArray(order.lineItems).map((li: LineItem) => ({
+          ...li,
+          lineNumber: li.lineNumber ?? 0,
+          product: li.product || {
+            id: "unknown",
+            description: "Producto no especificado",
+          },
+          volume: null,
+          weight: null,
+          cases: null,
+          taxRate: li.taxRate ?? 0,
+          returnedReason: li.returnedReason || null,
+        })),
+      })),
+
+      pickupOrders: safeArray(visit.pickupOrders).map((order: Order) => ({
+        ...order,
+        // Replicar misma transformación que orders
+        date: null,
+        cases: order.cases ?? null,
+        pallets: null,
+        cancelledReasonId: null,
+        postponedReasonId: null,
+        numberOfLineItems: safeArray(order.lineItems).length,
+
+        lineItems: safeArray(order.lineItems).map((li: LineItem) => ({
+          ...li,
+          lineNumber: li.lineNumber ?? 0,
+          product: li.product || {
+            id: "unknown",
+            description: "Producto no especificado",
+          },
+          volume: null,
+          weight: null,
+          cases: null,
+          taxRate: li.taxRate ?? 0,
+          returnedReason: li.returnedReason || null,
+        })),
+      })),
+
+      // Payment methods y reassignments
+      paymentMethods: safeArray(visit.paymentMethods as PaymentMethod[]).map(
+        (pm: PaymentMethod) => ({
+          ...pm,
+          documentId: pm.documentId || null,
+          bank: pm.bank || null,
+          accountNumber: pm.accountNumber || null,
+        })
+      ),
+
+      reassignedDeliveries: safeArray(visit.reassignedDeliveries).map(
+        (rd: any) => ({
+          ...rd,
+          fromOrderGroupId: rd.fromOrderGroupId || null,
+          toOrderGroupId: rd.toOrderGroupId || null,
+        })
+      ),
+    })),
+
+    // Transformación de orders raíz
+    orders: safeArray(plan.orders).map((order: Order) => ({
+      ...order,
+      date: null,
+      pallets: null,
+      cancelledReasonId: null,
+      postponedReasonId: null,
+      numberOfLineItems: safeArray(order.lineItems).length,
+
+      lineItems: safeArray(order.lineItems).map((li: LineItem) => ({
+        ...li,
+        lineNumber: li.lineNumber ?? 0,
+        product: li.product || {
+          id: "unknown",
+          description: "Producto no especificado",
+        },
+        volume: null,
+        weight: null,
+        cases: null,
+        taxRate: li.taxRate ?? 0,
+        returnedReason: li.returnedReason || null,
+      })),
+    })),
+
+    // Truck con tipo incluido
+    truck: plan.truck
+      ? {
+          ...plan.truck,
+          truckType: plan.truck.truckType || null,
+        }
+      : null,
+
+    // Campos adicionales requeridos
+    route: plan.route || null,
+    routeGroup: null,
+    assignedTruckType: null,
+  };
 };
 
 // Validate if a plan exists
