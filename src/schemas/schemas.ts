@@ -11,6 +11,7 @@ import {
 export const OperationTypeEnum = z.nativeEnum(OperationType);
 export const PointOfInterestTypeEnum = z.nativeEnum(PointOfInterestType);
 export const PaymentMethodTypeEnum = z.nativeEnum(PaymentMethodType);
+export const OrderStatusEnum = z.nativeEnum(OrderStatus);
 
 // --- ReasonSchema ---
 export const ReasonSchema = z.object({
@@ -210,7 +211,7 @@ export const OrderSchema: z.ZodType<any> = z.object({
   requiresSignature: z.boolean(),
   actualValue: z.number(),
   notes: z.string().nullable().optional(),
-  status: z.nativeEnum(OrderStatus),
+  status: OrderStatusEnum,
   statusConfirmed: z.boolean().nullable(),
   statusTimestamp: z.coerce.date().optional().nullable(),
   deliveryVisitId: z.string().nullable().optional(),
@@ -299,6 +300,10 @@ export const PlanSchema: z.ZodType<any> = z.object({
 
 // --- PlansSchema (array de PlanSchema) ---
 export const PlansSchema = z.array(PlanSchema);
+
+export const CreatePlansInputSchema = z.object({
+  plans: PlansSchema,
+});
 
 // --- BusinessSegmentSchema ---
 export const BusinessSegmentSchema = z.object({

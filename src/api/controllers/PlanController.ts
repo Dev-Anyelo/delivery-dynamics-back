@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "../../lib/db";
 import { Request, Response } from "express";
-import { PlanSchema, PlansSchema } from "../../schemas/schemas";
+import { CreatePlansInputSchema, PlanSchema } from "../../schemas/schemas";
 
 import {
   getExternalPlan,
@@ -171,26 +171,26 @@ export const createPlans = async (
   res: Response
 ): Promise<void> => {
   try {
-    const validatedPlans = PlansSchema.parse(req.body);
-    const newPlans = [];
+    const { plans } = CreatePlansInputSchema.parse(req.body);
+    const createdPlans = [];
 
-    for (const plan of validatedPlans) {
+    for (const plan of plans) {
       const existingPlan = await planExists(plan.id);
       if (existingPlan) {
         sendResponse(
           res,
           409,
           false,
-          `El plan con ID ${plan.id} ya existe en la base de datos.`
+          `El plan con ID (${plan.id}) ya existe en la base de datos.`
         );
         return;
       }
 
       const newPlan = await createNewPlan(plan);
-      newPlans.push(newPlan);
+      createdPlans.push(newPlan);
     }
 
-    sendResponse(res, 201, true, "Planes creados exitosamente.", newPlans);
+    sendResponse(res, 201, true, "Guía creada exitosamente", createdPlans);
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error("Datos inválidos al crear planes:", error.errors);
