@@ -5,6 +5,7 @@ import {
   PointOfInterestType,
   PaymentMethodType,
   OrderStatus,
+  UserRole,
 } from "@prisma/client";
 
 // Enums
@@ -12,6 +13,32 @@ export const OperationTypeEnum = z.nativeEnum(OperationType);
 export const PointOfInterestTypeEnum = z.nativeEnum(PointOfInterestType);
 export const PaymentMethodTypeEnum = z.nativeEnum(PaymentMethodType);
 export const OrderStatusEnum = z.nativeEnum(OrderStatus);
+
+export const loginSchema = z.object({
+  email: z.string().email({ message: "Ingresa un email válido" }),
+  password: z
+    .string()
+    .min(8, { message: "La contraseña debe tener al menos 8 caracteres" }),
+});
+
+// User schema
+
+export const UserRoleEnum = z.nativeEnum(UserRole);
+
+export const UserSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, { message: "El campo 'name' es requerido" }),
+  email: z
+    .string()
+    .email({ message: "El campo 'email' debe ser un correo electrónico" }),
+  password: z.string().min(8, {
+    message: "El campo 'password' debe tener al menos 8 caracteres",
+  }),
+  role: UserRoleEnum,
+  isActive: z.boolean().optional(),
+  loginAttempts: z.number().optional(),
+  lastLoginAttempt: z.date().optional(),
+});
 
 // --- ReasonSchema ---
 export const ReasonSchema = z.object({

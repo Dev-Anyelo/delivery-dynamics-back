@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { authenticate } from "../../authMiddleware";
 
 import {
   deletePlan,
@@ -9,37 +10,25 @@ import {
 } from "../controllers/PlanController";
 
 import {
-  getAllRouteGroups,
-  getRouteGroupsById,
-  createRouteGroup,
-  updateRouteGroup,
-  getRouteByID,
-  createRoute,
-  updateRoute,
-  deleteRoute,
-  deleteRouteGroup,
-} from "../controllers/RouteController";
+  login,
+  logout,
+  register,
+  verify,
+} from "../controllers/AuthenticationController";
 
 const router = Router();
 
-// ------ PLANS ------ //
-router.get("/plans", getPlanByDateAndUser);
-router.get("/plans/:id", getPlanById);
-router.post("/plans", createPlans);
-router.put("/plans/:id", updatePlan);
-router.delete("/plans/:id", deletePlan);
+// Authentication
+router.post("/auth/login", login);
+router.post("/auth/logout", logout);
+router.post("/auth/register", register);
+router.get("/auth/verify", authenticate, verify);
 
-// ------ ROUTES GROUP ------ //
-router.get("/route-groups", getAllRouteGroups);
-router.get("/route-groups/:id", getRouteGroupsById);
-router.post("/route-groups", createRouteGroup);
-router.put("/route-groups/:id", updateRouteGroup);
-router.delete("/route-groups/:id", deleteRouteGroup);
-
-// ------ ROUTES ------ //
-router.get("/route-groups/:routeGroupId/routes/:routeId:", getRouteByID);
-router.post("/route-groups/:routeGroupId/routes", createRoute);
-router.put("/route-groups/:routeGroupId/routes/:routeId", updateRoute);
-router.delete("/route-groups/:routeGroupId/routes/:routeId", deleteRoute);
+// Plans
+router.get("/plans", authenticate, getPlanByDateAndUser);
+router.get("/plans/:id", authenticate, getPlanById);
+router.post("/plans", authenticate, createPlans);
+router.put("/plans/:id", authenticate, updatePlan);
+router.delete("/plans/:id", authenticate, deletePlan);
 
 export default router;

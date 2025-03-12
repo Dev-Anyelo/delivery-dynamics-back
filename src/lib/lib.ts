@@ -1,9 +1,10 @@
 import { z } from "zod";
 import axios from "axios";
 import cuid from "cuid";
+import bcrypt from "bcrypt";
 import { db } from "../lib/db";
-import { Response } from "express";
 import config from "../config/config";
+import { Request, Response } from "express";
 import { PlanSchema, RouteGroupSchema } from "../schemas/schemas";
 import { LineItem, Order, PaymentMethod, Plan, Visit } from "../types/types";
 
@@ -828,4 +829,9 @@ export const sendResponse = (
     message,
     data,
   });
+};
+
+// Validate password
+export const validatePassword = (password: string, userPassword: string) => {
+  return bcrypt.compare(password, userPassword);
 };
