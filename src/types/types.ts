@@ -5,6 +5,7 @@ import {
   OrderSchema,
   PaymentMethodSchema,
   PlanSchema,
+  UserSchema,
   VisitSchema,
 } from "../schemas/schemas";
 
@@ -13,3 +14,5 @@ export type Visit = z.infer<typeof VisitSchema>;
 export type Order = z.infer<typeof OrderSchema>;
 export type LineItem = z.infer<typeof LineItemSchema>;
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;
+
+export type User = z.infer<typeof UserSchema>;

@@ -31,9 +31,12 @@ export const UserSchema = z.object({
   email: z
     .string()
     .email({ message: "El campo 'email' debe ser un correo electrónico" }),
-  password: z.string().min(8, {
-    message: "El campo 'password' debe tener al menos 8 caracteres",
-  }),
+  password: z
+    .string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .optional()
+    .or(z.literal("").optional()),
+    
   role: UserRoleEnum,
   isActive: z.boolean().optional(),
   loginAttempts: z.number().optional(),

@@ -1,10 +1,9 @@
-import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../../lib/db";
 import config from "../../config/config";
 import { validatePassword } from "../../lib/lib";
+import { loginSchema } from "../../schemas/schemas";
 import { COOKIE_NAME } from "../../constants/constants";
-import { loginSchema, UserSchema } from "../../schemas/schemas";
 import { NextFunction, Request, RequestHandler, Response } from "express";
 
 import {
@@ -84,13 +83,14 @@ export const login: RequestHandler = async (
     });
 
     res.json({
-      success: true,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
       },
+      success: true,
+      token,
     });
   } catch (error) {
     next(error);
@@ -104,7 +104,7 @@ const invalidCredentials = (res: Response) => {
   });
 };
 
-// Verify
+// Verify user
 export const verify: RequestHandler = async (req, res, next) => {
   try {
     if (!req.user?.userId) {
@@ -151,44 +151,4 @@ export const logout: RequestHandler = (req, res) => {
     })
     .status(200)
     .json({ success: true });
-};
-
-// Register
-export const register: RequestHandler = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const { name, email, password, role } = UserSchema.parse(req.body);
-
-    const existingUser = await db.user.findUnique({ where: { email } });
-
-    if (existingUser) {
-      res.status(409).json({
-        success: false,
-        message: "El usuario ya existe, por favor intenta nuevamente",
-      });
-      return;
-    }
-
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create the user
-    const user = await db.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role,
-      },
-    });
-
-    res.status(201).json({ success: true, user });
-  } catch (error) {
-    console.error("Registration error:", error);
-    next(error);
-    res.status(400).json({ success: false, message: "Error en el registro" });
-  }
 };

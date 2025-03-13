@@ -835,3 +835,8 @@ export const sendResponse = (
 export const validatePassword = (password: string, userPassword: string) => {
   return bcrypt.compare(password, userPassword);
 };
+
+// Hash password
+export const hashPassword = (password: string) => {
+  return bcrypt.hash(password, 10);
+};
