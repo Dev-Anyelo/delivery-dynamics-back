@@ -26,11 +26,11 @@ router.post("/auth/logout", logout);
 router.get("/auth/verify", authenticate, verify);
 
 // User
-router.get("/users", authenticate, getUsers);
-router.get("/user/:id", authenticate, getUserById);
-router.post("/user", authenticate, createUser);
-router.put("/user/:id", authenticate, updateUser);
-router.delete("/user/:id", authenticate, deleteUser);
+router.get("/users", getUsers);
+router.get("/user/:id", getUserById);
+router.post("/user", createUser);
+router.put("/user/:id", updateUser);
+router.delete("/user/:id", deleteUser);
 
 // Plans
 //TODO: Add authentication middleware and send cookie from frontend

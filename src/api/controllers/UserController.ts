@@ -80,11 +80,7 @@ export const createUser: RequestHandler = async (
     }
 
     // Validate the role
-    if (
-      role !== UserRole.USER &&
-      role !== UserRole.ADMIN &&
-      role !== UserRole.MANAGER
-    ) {
+    if (!role || !Object.values(UserRole).includes(role)) {
       res.status(400).json({
         success: false,
         message: "Rol inválido, elige entre USER, ADMIN o MANAGER",
@@ -102,6 +98,7 @@ export const createUser: RequestHandler = async (
         email,
         password: hashedPassword,
         role,
+        isActive: true,
       },
     });
 
@@ -135,11 +132,7 @@ export const updateUser: RequestHandler = async (
     }
 
     // Validate the role
-    if (
-      role !== UserRole.USER &&
-      role !== UserRole.ADMIN &&
-      role !== UserRole.MANAGER
-    ) {
+    if (!role || !Object.values(UserRole).includes(role)) {
       res.status(400).json({
         success: false,
         message: "Rol inválido, elige entre USER, ADMIN o MANAGER",
