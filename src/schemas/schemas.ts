@@ -36,7 +36,7 @@ export const UserSchema = z.object({
     .min(8, "La contraseña debe tener al menos 8 caracteres")
     .optional()
     .or(z.literal("").optional()),
-    
+
   role: UserRoleEnum,
   isActive: z.boolean().optional(),
   loginAttempts: z.number().optional(),
@@ -293,7 +293,7 @@ export const PlanSchema: z.ZodType<any> = z.object({
   startPoint: z.lazy(() => PointOfInterestSchema),
   endPointId: z.string(),
   endPoint: z.lazy(() => PointOfInterestSchema),
-  truckId: z.string().optional(),
+  truckId: z.string().nullable().optional(),
   truckTypeId: z.string().nullable(),
   routeId: z.string().nullable(),
   routeGroupId: z.string().nullable(),
@@ -362,7 +362,7 @@ export const AddressSchema: z.ZodType<any> = z.object({
   phone: z.string().nullable(),
   notes: z.string().nullable().optional(),
   contact: z.string().nullable(),
-  businessType: z.string(),
+  businessType: z.string().nullable(),
   customerId: z.string().optional(),
   customer: z.lazy(() => CustomerSchema).optional(),
   firstDeliveryTimeWindowId: z.string().optional(),
