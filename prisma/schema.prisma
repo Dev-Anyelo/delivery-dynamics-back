@@ -44,7 +44,7 @@ enum UserRole {
   MANAGER
 }
 
-// --- MODELOS ---
+// --- MODELS ---
 
 model User {
   id               String    @id @default(cuid())
@@ -93,9 +93,9 @@ model Address {
   phone        String?
   notes        String?
   contact      String?
-  businessType String
+  businessType String?
 
-  customerId String? // hecho opcional
+  customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id])
 
   firstDeliveryTimeWindowId  String?

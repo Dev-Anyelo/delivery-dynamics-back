@@ -363,14 +363,14 @@ export const AddressSchema: z.ZodType<any> = z.object({
   notes: z.string().nullable().optional(),
   contact: z.string().nullable(),
   businessType: z.string().nullable(),
-  customerId: z.string().optional(),
+  customerId: z.string().nullable().optional(),
   customer: z.lazy(() => CustomerSchema).optional(),
-  firstDeliveryTimeWindowId: z.string().optional(),
+  firstDeliveryTimeWindowId: z.string().nullable().optional(),
   firstDeliveryTimeWindow: z
     .lazy(() => TimeWindowSchema)
     .optional()
     .nullable(),
-  secondDeliveryTimeWindowId: z.string().optional(),
+  secondDeliveryTimeWindowId: z.string().nullable().optional(),
   secondDeliveryTimeWindow: z
     .lazy(() => TimeWindowSchema)
     .optional()

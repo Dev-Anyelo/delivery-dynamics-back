@@ -409,11 +409,22 @@ export const createNewPlan = async (data: z.infer<typeof PlanSchema>) => {
         id: data.id,
         operationType: data.operationType,
         date: new Date(data.date),
-        activeDates: data.activeDates.map((d: string) => new Date(d)),
+        activeDates: data.activeDates.map((d: string | Date) => new Date(d)),
         assignedUserId: data.assignedUserId ?? undefined,
-        // Conexiones opcionales para relaciones simples
+        // Con BusinessSegment usando connectOrCreate
         ...(data.businessSegmentId
-          ? { businessSegment: { connect: { id: data.businessSegmentId } } }
+          ? {
+              businessSegment: {
+                connectOrCreate: {
+                  where: { id: data.businessSegmentId },
+                  create: {
+                    id: data.businessSegmentId,
+                    name:
+                      data.businessSegment?.name || "Default Business Segment",
+                  },
+                },
+              },
+            }
           : {}),
         ...(data.routeId ? { route: { connect: { id: data.routeId } } } : {}),
         ...(data.truckId
@@ -423,205 +434,222 @@ export const createNewPlan = async (data: z.infer<typeof PlanSchema>) => {
                   where: { id: data.truckId },
                   create: {
                     id: data.truck?.id || data.truckId,
-                    label: data.truck?.label ?? undefined,
-                    truckTypeId: data.truck?.truckTypeId ?? null,
+                    label: data.truck?.label || undefined,
+                    truckTypeId: data.truck?.truckTypeId ?? undefined,
                   },
                 },
               },
             }
           : {}),
-        truckTypeId: data.truckTypeId ?? null,
-        routeGroupId: data.routeGroupId ?? null,
-        // Los puntos de interés se crean usando nested write sin duplicar campos escalares
+        truckTypeId: data.truckTypeId ?? undefined,
+        routeGroupId: data.routeGroupId ?? undefined,
+        // Puntos de interés: startPoint y endPoint
         startPoint: {
           connectOrCreate: {
-            where: { id: data.startPoint?.id },
+            where: { id: data.startPoint.id },
             create: {
-              id: data.startPoint?.id,
-              name: data.startPoint?.name,
-              address: data.startPoint?.address ?? null,
-              latitude: data.startPoint?.latitude,
-              longitude: data.startPoint?.longitude,
-              type: data.startPoint?.type,
+              id: data.startPoint.id,
+              name: data.startPoint.name,
+              address: data.startPoint.address ?? undefined,
+              latitude: data.startPoint.latitude,
+              longitude: data.startPoint.longitude,
+              type: data.startPoint.type,
             },
           },
         },
         endPoint: {
           connectOrCreate: {
-            where: { id: data.endPoint?.id },
+            where: { id: data.endPoint.id },
             create: {
-              id: data.endPoint?.id,
-              name: data.endPoint?.name,
-              address: data.endPoint?.address ?? null,
-              latitude: data.endPoint?.latitude,
-              longitude: data.endPoint?.longitude,
-              type: data.endPoint?.type,
+              id: data.endPoint.id,
+              name: data.endPoint.name,
+              address: data.endPoint.address ?? undefined,
+              latitude: data.endPoint.latitude,
+              longitude: data.endPoint.longitude,
+              type: data.endPoint.type,
             },
           },
         },
-        // Fechas y otros campos
+        // Conversión de fechas y campos numéricos
         plannedStartTimestamp: data.plannedStartTimestamp
           ? new Date(data.plannedStartTimestamp)
           : undefined,
         plannedEndTimestamp: data.plannedEndTimestamp
           ? new Date(data.plannedEndTimestamp)
           : undefined,
-        plannedTotalTimeH: data.plannedTotalTimeH,
-        plannedDriveTimeH: data.plannedDriveTimeH,
-        plannedServiceTimeH: data.plannedServiceTimeH,
-        plannedWaitTimeH: data.plannedWaitTimeH,
-        plannedBreakTimeH: data.plannedBreakTimeH,
-        plannedEndBreakTimeH: data.plannedEndBreakTimeH,
-        plannedDistanceKm: data.plannedDistanceKm,
+        plannedTotalTimeH: data.plannedTotalTimeH ?? undefined,
+        plannedDriveTimeH: data.plannedDriveTimeH ?? undefined,
+        plannedServiceTimeH: data.plannedServiceTimeH ?? undefined,
+        plannedWaitTimeH: data.plannedWaitTimeH ?? undefined,
+        plannedBreakTimeH: data.plannedBreakTimeH ?? undefined,
+        plannedEndBreakTimeH: data.plannedEndBreakTimeH ?? undefined,
+        plannedDistanceKm: data.plannedDistanceKm ?? undefined,
         actualStartTimestamp: data.actualStartTimestamp
           ? new Date(data.actualStartTimestamp)
           : undefined,
         actualEndTimestamp: data.actualEndTimestamp
           ? new Date(data.actualEndTimestamp)
           : undefined,
-        startLatitude: data.startLatitude,
-        startLongitude: data.startLongitude,
-        endLatitude: data.endLatitude,
-        endLongitude: data.endLongitude,
-        batchId: data.batchId ?? null,
+        startLatitude: data.startLatitude ?? undefined,
+        startLongitude: data.startLongitude ?? undefined,
+        endLatitude: data.endLatitude ?? undefined,
+        endLongitude: data.endLongitude ?? undefined,
+        batchId: data.batchId ?? undefined,
         enableTelematicsGps: data.enableTelematicsGps,
         enableAutoArrival: data.enableAutoArrival,
         enableAutoStart: data.enableAutoStart,
         numHelpers: data.numHelpers,
-        // Nested write para las visitas
-        visits: {
-          create:
-            data.visits?.map((visit: Visit) => ({
-              id: visit.id ?? cuid(),
-              sequence: visit.sequence ?? 0,
-              customer: visit.customer
-                ? {
-                    connectOrCreate: {
-                      where: { id: visit.customer.id },
-                      create: {
-                        id: visit.customer.id,
-                        name: visit.customer.name,
-                        phone: visit.customer.phone ?? null,
-                        email: visit.customer.email ?? null,
-                      },
-                    },
-                  }
-                : undefined,
-              ...(visit.address
-                ? {
-                    address: {
+        // Creación de visitas y órdenes anidadas
+        visits: data.visits
+          ? {
+              create: data.visits.map((visit: Visit) => ({
+                id: visit.id ?? cuid(),
+                sequence: visit.sequence ?? 0,
+                customer: visit.customer
+                  ? {
                       connectOrCreate: {
-                        where: { id: visit.address.id },
+                        where: { id: visit.customer.id },
                         create: {
-                          id: visit.address.id,
-                          label: visit.address.label ?? null,
-                          address: visit.address.address,
-                          latitude: visit.address.latitude,
-                          longitude: visit.address.longitude,
-                          contact: visit.address.contact ?? null,
-                          phone: visit.address.phone ?? null,
-                          notes: visit.address.notes ?? null,
-                          businessType: visit.address.businessType,
+                          id: visit.customer.id,
+                          name: visit.customer.name,
+                          phone: visit.customer.phone ?? undefined,
+                          email: visit.customer.email ?? undefined,
                         },
                       },
-                    },
-                  }
-                : {}),
-              deliveryOrders: {
-                create:
-                  visit.orders?.map((order: Order) => ({
-                    id: order.id ?? cuid(),
-                    // La orden debe estar conectada al plan actual
-                    plan: { connect: { id: data.id } },
-                    customer: {
-                      connectOrCreate: {
-                        where: { id: order.customerId },
-                        create: {
-                          id: order.customerId,
-                          name: order.customer?.name || "Nombre por defecto",
-                          phone: order.customer?.phone ?? null,
-                          email: order.customer?.email ?? null,
+                    }
+                  : undefined,
+                ...(visit.address
+                  ? {
+                      address: {
+                        connectOrCreate: {
+                          where: { id: visit.address.id },
+                          create: {
+                            id: visit.address.id,
+                            label: visit.address.label ?? undefined,
+                            address: visit.address.address,
+                            latitude: visit.address.latitude,
+                            longitude: visit.address.longitude,
+                            contact: visit.address.contact ?? undefined,
+                            phone: visit.address.phone ?? undefined,
+                            notes: visit.address.notes ?? undefined,
+                            businessType: visit.address.businessType ?? "N/A",
+                          },
                         },
                       },
-                    },
-                    ...(order.addressId
-                      ? { address: { connect: { id: order.addressId } } }
-                      : {}),
-                    // Conexión condicional para relaciones (no se envía el campo escalar salesRepresentativeId)
-                    ...(order.salesRepresentativeId
-                      ? {
-                          salesRepresentative: {
-                            connect: { id: order.salesRepresentativeId },
+                    }
+                  : {}),
+                deliveryOrders: visit.orders
+                  ? {
+                      create: visit.orders.map((order: Order) => ({
+                        id: order.id ?? cuid(),
+                        plan: { connect: { id: data.id } },
+                        customer: {
+                          connectOrCreate: {
+                            where: { id: order.customerId },
+                            create: {
+                              id: order.customerId,
+                              name:
+                                order.customer?.name || "Nombre por defecto",
+                              phone: order.customer?.phone ?? undefined,
+                              email: order.customer?.email ?? undefined,
+                            },
                           },
-                        }
-                      : {}),
-                    serviceDate: new Date(order.serviceDate),
-                    ...(order.orderGroupId
-                      ? { orderGroup: { connect: { id: order.orderGroupId } } }
-                      : {}),
-                    ...(order.startPointId
-                      ? { startPoint: { connect: { id: order.startPointId } } }
-                      : {}),
-                    ...(order.businessSegmentId
-                      ? {
-                          businessSegment: {
-                            connect: { id: order.businessSegmentId },
-                          },
-                        }
-                      : {}),
-                    value: order.value,
-                    volume: order.volume,
-                    weight: order.weight,
-                    cases: order.cases != null ? Math.round(order.cases) : 0,
-                    requiresSignature: order.requiresSignature,
-                    actualValue: order.actualValue ?? 0,
-                    instructions: order.instructions ?? null,
-                    notes: order.notes ?? null,
-                    status: order.status ?? "pending",
-                    statusConfirmed: order.statusConfirmed ?? null,
-                    statusTimestamp: order.statusTimestamp
-                      ? new Date(order.statusTimestamp)
-                      : undefined,
-                    // Nested write para los lineItems de la orden
-                    lineItems: {
-                      create:
-                        order.lineItems?.map((li: LineItem) => ({
-                          id: li.id ?? cuid(),
-                          quantity: li.quantity,
-                          unitPrice: li.unitPrice,
-                          taxRate: li.taxRate,
-                          value: li.value ?? 0,
-                          actualQuantity: li.actualQuantity ?? 0,
-                          actualValue: li.actualValue ?? 0,
-                          lineNumber: li.lineNumber ?? 0,
-                          status: li.status ?? "pending",
-                          notes: li.notes ?? null,
-                          // Se conecta o crea el producto según corresponda
-                          product: li.product
-                            ? {
-                                connectOrCreate: {
-                                  where: { id: li.product.id },
-                                  create: {
-                                    id: li.product.id,
-                                    description: li.product.description,
-                                  },
+                        },
+                        ...(order.addressId
+                          ? { address: { connect: { id: order.addressId } } }
+                          : {}),
+                        ...(order.salesRepresentativeId
+                          ? {
+                              salesRepresentative: {
+                                connect: {
+                                  id: order.salesRepresentativeId,
                                 },
-                              }
+                              },
+                            }
+                          : {}),
+                        serviceDate: new Date(order.serviceDate),
+                        ...(order.orderGroupId
+                          ? {
+                              orderGroup: {
+                                connect: { id: order.orderGroupId },
+                              },
+                            }
+                          : {}),
+                        ...(order.startPointId
+                          ? {
+                              startPoint: {
+                                connect: { id: order.startPointId },
+                              },
+                            }
+                          : {}),
+                        ...(order.businessSegmentId
+                          ? {
+                              businessSegment: {
+                                connect: {
+                                  id: order.businessSegmentId,
+                                },
+                              },
+                            }
+                          : {}),
+                        value: order.value,
+                        volume: order.volume ?? undefined,
+                        weight: order.weight ?? undefined,
+                        cases:
+                          order.cases != null
+                            ? Math.round(order.cases)
                             : undefined,
-                          // Si se recibe un returnedReasonId, se conecta la relación
-                          ...(li.returnedReasonId
-                            ? {
-                                returnedReason: {
-                                  connect: { id: li.returnedReasonId },
-                                },
-                              }
-                            : {}),
-                        })) || [],
-                    },
-                  })) || [],
-              },
-            })) || [],
-        },
+                        requiresSignature: order.requiresSignature,
+                        actualValue: order.actualValue ?? 0,
+                        instructions: order.instructions ?? undefined,
+                        notes: order.notes ?? undefined,
+                        status: order.status ?? "pending",
+                        statusConfirmed: order.statusConfirmed ?? undefined,
+                        statusTimestamp: order.statusTimestamp
+                          ? new Date(order.statusTimestamp)
+                          : undefined,
+                        lineItems: order.lineItems
+                          ? {
+                              create: order.lineItems.map((li: LineItem) => ({
+                                id: li.id ?? cuid(),
+                                quantity: li.quantity,
+                                unitPrice: li.unitPrice,
+                                taxRate: li.taxRate,
+                                value: li.value ?? 0,
+                                actualQuantity: li.actualQuantity ?? 0,
+                                actualValue: li.actualValue ?? 0,
+                                lineNumber: li.lineNumber ?? 0,
+                                status: li.status ?? "pending",
+                                notes: li.notes ?? undefined,
+                                product: li.product
+                                  ? {
+                                      connectOrCreate: {
+                                        where: { id: li.product.id },
+                                        create: {
+                                          id: li.product.id,
+                                          description:
+                                            li.product.description ?? undefined,
+                                        },
+                                      },
+                                    }
+                                  : undefined,
+                                ...(li.returnedReasonId
+                                  ? {
+                                      returnedReason: {
+                                        connect: {
+                                          id: li.returnedReasonId,
+                                        },
+                                      },
+                                    }
+                                  : {}),
+                              })),
+                            }
+                          : undefined,
+                      })),
+                    }
+                  : undefined,
+              })),
+            }
+          : undefined,
       },
     });
     return plan;
